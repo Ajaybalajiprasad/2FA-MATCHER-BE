@@ -15,7 +15,10 @@ const start = async () => {
 
   const shutdown = () => {
     logger.info('Shutting down...');
-    server.close(() => pool.end().then(() => process.exit(0)));
+    server.close(() => pool.end().finally(() => process.exit(0)));
+    // Keep-alive connections would otherwise hold the port during nodemon restarts.
+    server.closeAllConnections();
+    setTimeout(() => process.exit(1), 3000).unref();
   };
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);

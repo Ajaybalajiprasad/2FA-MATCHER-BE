@@ -2,5 +2,6 @@
   "watch": ["src"],
   "ext": "ts,json",
   "ignore": ["src/**/__tests__/**"],
-  "exec": "tsx src/server.ts"
+  "exec": "tsx src/server.ts",
+  "signal": "SIGTERM"
 }
