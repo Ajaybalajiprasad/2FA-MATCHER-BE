@@ -15,6 +15,13 @@
       "when": 1794555946981,
       "tag": "0001_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794582439273,
+      "tag": "0002_friends",
+      "breakpoints": true
     }
   ]
 }

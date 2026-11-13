@@ -5,6 +5,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8000),
+  DATABASE_TRANSPORT: z.enum(['tcp', 'websocket']).default('tcp'),
   DATABASE_URL: z
     .string({ required_error: 'DATABASE_URL is missing: copy .env.example to .env and set it' })
     .min(1),

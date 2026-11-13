@@ -82,7 +82,7 @@ describe('G1 filters and gender composition', () => {
 
 describe('G2 traveller profile with groups', () => {
   it('lists the groups a traveller owns or joined, with roles', async () => {
-    const sarah = await anon.get('/api/travellers/T-001');
+    const sarah = await as('T-001').get('/api/travellers/T-001');
     expect(sarah.body.data).toMatchObject({ homeCity: expect.any(String), age: 27, interests: expect.any(Array) });
     expect(sarah.body.data.groups).toEqual([
       expect.objectContaining({ id: 'G-01', role: 'OWNER', city: 'Kyoto', memberCount: 1, maxSize: 3, status: 'OPEN' }),
@@ -92,7 +92,7 @@ describe('G2 traveller profile with groups', () => {
     const member = await signUp();
     const group = await createGroup(owner, { city: 'Osaka' });
     await join(owner, member, group, { city: 'Osaka' });
-    const profile = (await anon.get(`/api/travellers/${member}`)).body.data;
+    const profile = (await as(member).get(`/api/travellers/${member}`)).body.data;
     expect(profile.groups).toEqual([expect.objectContaining({ id: group, role: 'MEMBER', memberCount: 2 })]);
     expect((await anon.get(`/api/travellers/${await signUp()}`)).body.data.groups).toEqual([]);
   });

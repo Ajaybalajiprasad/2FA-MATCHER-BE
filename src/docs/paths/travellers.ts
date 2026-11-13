@@ -27,9 +27,9 @@ export const travellerPaths = {
     get: {
       tags: ['Travellers'],
       summary:
-        'Traveller profile page (G2): interests, home city, age, and the groups they are in (id, name, city, checkIn, checkOut, status, role OWNER|MEMBER, memberCount, maxSize), sorted by check-in then group id',
+        'Traveller profile (G2): basic details are public. Groups are returned only to the profile owner or an accepted friend identified by X-User-Id. Otherwise canViewGroups is false and groups is empty.',
       parameters: [pathParam('id', 'T-001')],
-      responses: { 200: ok('Traveller profile with groups'), 404: ok('Not found') },
+      responses: { 200: ok('Traveller profile with canViewGroups and a permission-filtered groups array'), 404: ok('Not found') },
     },
   },
   '/api/me': {

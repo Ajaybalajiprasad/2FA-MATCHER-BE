@@ -2,6 +2,7 @@ import { db } from '../db';
 import { AppError } from '../middleware/errorHandler';
 import { catalogRepository } from '../repositories/CatalogRepository';
 import { groupRepository } from '../repositories/GroupRepository';
+import { friendRepository } from '../repositories/FriendRepository';
 import { TravellerRepository, travellerRepository } from '../repositories/TravellerRepository';
 import { ErrorCode } from '../types/errors';
 import type { Traveller } from '../types/traveller.types';
@@ -44,12 +45,17 @@ export class TravellerService {
     return traveller;
   }
 
-  async getProfile(id: string) {
+  async getProfile(id: string, viewerId?: string) {
     const traveller = await this.getById(id);
+    const friendship = viewerId && viewerId !== id ? await friendRepository.findPair(viewerId, id) : undefined;
+    const canViewGroups = viewerId === id || friendship?.status === 'ACCEPTED';
+    // Basic profiles remain discoverable. Never fetch or return group details to non-friends.
+    if (!canViewGroups) return { ...traveller, canViewGroups: false, groups: [] };
     const groups = await groupRepository.findByMember(id);
     const counts = await groupRepository.memberCounts(groups.map((g) => g.id));
     return {
       ...traveller,
+      canViewGroups: true,
       groups: groups.map((g) => ({
         id: g.id,
         name: g.name,

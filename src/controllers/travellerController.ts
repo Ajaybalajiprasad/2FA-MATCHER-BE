@@ -12,7 +12,8 @@ export const listTravellers = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const getTraveller = asyncHandler(async (req: Request, res: Response) => {
-  res.json(createSuccessResponse('Traveller fetched', await travellerService.getProfile(req.params.id)));
+  res.set('Cache-Control', 'private, no-store');
+  res.json(createSuccessResponse('Traveller fetched', await travellerService.getProfile(req.params.id, req.user?.id)));
 });
 
 export const getMe = (req: Request, res: Response) => {

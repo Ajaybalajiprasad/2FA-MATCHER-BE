@@ -5,6 +5,7 @@ import { metaPaths } from './paths/meta';
 import { planningPaths } from './paths/planning';
 import { requestPaths } from './paths/requests';
 import { travellerPaths } from './paths/travellers';
+import { friendPaths } from './paths/friends';
 
 export const openApiSpec = {
   openapi: '3.0.3',
@@ -17,6 +18,7 @@ export const openApiSpec = {
   paths: {
     ...metaPaths,
     ...travellerPaths,
+    ...friendPaths,
     ...groupPaths,
     ...planningPaths,
     ...messagePaths,
