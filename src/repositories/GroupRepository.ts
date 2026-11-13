@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import { db, type DbOrTx } from '../db';
-import { groupMembers, groups, joinRequests } from '../db/schema';
+import { groupMembers, groups, joinRequests, travellers } from '../db/schema';
 
 export type Group = typeof groups.$inferSelect;
 export type NewGroup = typeof groups.$inferInsert;
@@ -58,6 +58,25 @@ export class GroupRepository {
       .where(inArray(groupMembers.groupId, groupIds))
       .groupBy(groupMembers.groupId);
     return new Map(rows.map((r) => [r.groupId, r.n]));
+  }
+
+  async memberGenderCounts(groupIds: string[]): Promise<Map<string, { female: number; male: number }>> {
+    const result = new Map<string, { female: number; male: number }>();
+    if (groupIds.length === 0) return result;
+    const rows = await this.conn
+      .select({ groupId: groupMembers.groupId, gender: travellers.gender, n: count() })
+      .from(groupMembers)
+      .innerJoin(travellers, eq(travellers.id, groupMembers.travellerId))
+      .where(inArray(groupMembers.groupId, groupIds))
+      .groupBy(groupMembers.groupId, travellers.gender)
+      .orderBy(asc(groupMembers.groupId), asc(travellers.gender));
+    for (const r of rows) {
+      const c = result.get(r.groupId) ?? { female: 0, male: 0 };
+      if (r.gender === 'FEMALE') c.female = r.n;
+      else c.male = r.n;
+      result.set(r.groupId, c);
+    }
+    return result;
   }
 
   async pendingRequestCounts(groupIds: string[]): Promise<Map<string, number>> {

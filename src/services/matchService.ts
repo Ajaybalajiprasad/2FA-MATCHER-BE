@@ -5,7 +5,8 @@ import { travellerRepository } from '../repositories/TravellerRepository';
 import type { MatchContext, RuleId, SeekerCriteria } from '../types/match.types';
 import type { Traveller } from '../types/traveller.types';
 import { newId } from '../utils/id';
-import { evaluateMatch, seatsLeft } from '../utils/matchRules';
+import { genderComposition, passesFilters } from '../utils/matchFilters';
+import { evaluateMatch, seatsLeft, sharedInterests } from '../utils/matchRules';
 import { compareRanked, rankScore } from '../utils/ranking';
 import type { MatchSearchInput } from '../validators/matchValidators';
 import { groupService } from './groupService';
@@ -39,7 +40,7 @@ const suggestionFor = (rule: RuleId, { seeker, group, owner }: MatchContext): st
 export class MatchService {
   async search(seeker: Traveller, input: MatchSearchInput) {
     const interests = [...new Set(input.interests)];
-    await travellerService.assertKnownInterests(interests);
+    await travellerService.assertKnownInterests([...new Set([...interests, ...(input.filters?.sharedInterests ?? [])])]);
     await groupService.assertTripInData(input.city, input.checkIn, input.checkOut);
 
     const criteria: SeekerCriteria = {
@@ -61,9 +62,11 @@ export class MatchService {
     ]);
     const myGroupIds = new Set(myGroups.map((g) => g.id));
     const candidates = openGroups.filter((g) => !myGroupIds.has(g.id));
-    const [owners, counts] = await Promise.all([
+    const candidateIds = candidates.map((g) => g.id);
+    const [owners, counts, genderCounts] = await Promise.all([
       travellerRepository.findByIds([...new Set(candidates.map((g) => g.ownerId))]),
-      groupRepository.memberCounts(candidates.map((g) => g.id)),
+      groupRepository.memberCounts(candidateIds),
+      groupRepository.memberGenderCounts(candidateIds),
     ]);
     const ownerById = new Map(owners.map((o) => [o.id, o]));
 
@@ -73,6 +76,8 @@ export class MatchService {
       const memberCount = counts.get(g.id) ?? 0;
       const ctx: MatchContext = { seeker: criteria, group: { ...g, memberCount }, owner };
       const evaluation = evaluateMatch(ctx);
+      const genders = genderCounts.get(g.id) ?? { female: 0, male: 0 };
+      const composition = genderComposition(genders.female, genders.male);
       const item = {
         groupId: g.id,
         name: g.name,
@@ -82,6 +87,7 @@ export class MatchService {
         memberCount,
         maxSize: g.maxSize,
         seatsLeft: seatsLeft(memberCount, g.maxSize),
+        genderComposition: composition,
         budgetInr: g.budgetInr,
         ownerId: owner.id,
         ownerName: owner.name,
@@ -89,12 +95,15 @@ export class MatchService {
         rules: evaluation.rules,
         myRequestStatus: myRequests.get(g.id) ?? null,
       };
-      return [{ item, ctx, failedRules: evaluation.failedRules }];
+      const shown = passesFilters(sharedInterests(criteria.interests, owner.interests), composition, input.filters);
+      return [{ item, ctx, failedRules: evaluation.failedRules, shown }];
     });
 
-    const matches = evaluated.filter((e) => e.failedRules.length === 0).map((e) => e.item);
-    const nearMisses = evaluated
-      .filter((e) => e.failedRules.length === 1 && e.failedRules[0] !== 'SAME_CITY')
+    const allMatches = evaluated.filter((e) => e.failedRules.length === 0);
+    const allNearMisses = evaluated.filter((e) => e.failedRules.length === 1 && e.failedRules[0] !== 'SAME_CITY');
+    const matches = allMatches.filter((e) => e.shown).map((e) => e.item);
+    const nearMisses = allNearMisses
+      .filter((e) => e.shown)
       .map(({ item, ctx, failedRules }) => ({
         ...item,
         failedRules,
@@ -104,6 +113,8 @@ export class MatchService {
     return {
       searchId,
       criteria: { ...criteria, homeCity: input.homeCity ?? null },
+      filters: input.filters ?? null,
+      totalBeforeFilters: { matches: allMatches.length, nearMisses: allNearMisses.length },
       matches: matches.sort(compareRanked),
       nearMisses: nearMisses.sort(compareRanked),
     };
