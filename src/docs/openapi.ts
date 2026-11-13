@@ -1,5 +1,6 @@
 import { groupPaths } from './paths/groups';
 import { matchPaths } from './paths/matches';
+import { messagePaths } from './paths/messages';
 import { metaPaths } from './paths/meta';
 import { planningPaths } from './paths/planning';
 import { requestPaths } from './paths/requests';
@@ -18,6 +19,7 @@ export const openApiSpec = {
     ...travellerPaths,
     ...groupPaths,
     ...planningPaths,
+    ...messagePaths,
     ...matchPaths,
     ...requestPaths,
   },
