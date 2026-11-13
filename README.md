@@ -1,4 +1,4 @@
-# Group Travel Matcher — backend
+# Group Travel Matcher [backend]
 
 Express, TypeScript and PostgreSQL API for matching travellers, approving members, booking stays, friends and chat.
 
