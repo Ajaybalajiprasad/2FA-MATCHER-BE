@@ -24,7 +24,7 @@ Other commands:
 | `pnpm db:reset` | Drops all app tables, re-applies migrations and re-seeds. Run it before a demo. |
 | `pnpm start` | Starts the server without file watching. |
 | `pnpm seed` | Applies migrations and seeds only if the DB is empty. |
-| `pnpm test` | Runs the unit tests (Vitest). |
+| `pnpm test` | Runs all 168 tests: unit tests for the pure logic and API tests against an in-memory Postgres (PGlite), so your real database is never touched. |
 | `pnpm typecheck` | Runs `tsc --noEmit`. |
 
 URLs:
@@ -143,12 +143,12 @@ All paths are under `/api`. "User" means a valid `X-User-Id` header is required.
 | GET | `/meta` | Anyone | Cities, interests, home cities, genders, date window, group size, rule numbers |
 | POST | `/travellers` | Anyone | Sign up (M1). Returns the new traveller id. |
 | GET | `/travellers` | Anyone | List travellers |
-| GET | `/travellers/:id` | Anyone | One traveller profile |
+| GET | `/travellers/:id` | Anyone | Traveller profile page (G2): interests, home city, age, and `groups` (id, name, city, dates, status, `role` OWNER/MEMBER, memberCount, maxSize) |
 | GET | `/me` | User | The current traveller |
 | POST | `/groups` | User | Create a group post (M2). The caller becomes owner and first member. |
 | GET | `/groups/mine` | User | Groups I own or belong to, with my role and the pending request count for owners |
 | GET | `/groups/:id` | Anyone (user optional) | Group details, city timezone, owner, members, seats left, my request status if a user is sent, and the booking with its cost split once booked |
-| POST | `/matches/search` | User | Search (M3), returns ranked matches and near misses (M4), and a `searchId` |
+| POST | `/matches/search` | User | Search (M3), returns ranked matches and near misses (M4), and a `searchId`. Each result has `genderComposition`. Optional `filters` (G1): `sharedInterests`, `minSharedInterests`, `genderMix` (`ALL_FEMALE\|ALL_MALE\|MIXED`); response echoes `filters` and adds `totalBeforeFilters` |
 | POST | `/groups/:id/requests` | User | Request to join with `{ searchId }` (M5) |
 | GET | `/groups/:id/requests` | Group owner | List requests, `?status=PENDING\|APPROVED\|REJECTED\|ALL` (default `PENDING`), with the rule results |
 | PATCH | `/requests/:requestId` | Group owner | `{ action: "APPROVE" \| "REJECT" }` |
@@ -159,6 +159,8 @@ All paths are under `/api`. "User" means a valid `X-User-Id` header is required.
 | DELETE | `/groups/:id/saved/:roomId` | Group member | Remove my saved option |
 | POST | `/groups/:id/booking` | Group member | Finalize one booking `{ roomId }`. The group becomes `BOOKED`. |
 | GET | `/groups/:id/booking` | Group member | The group's booking and per-member cost |
+| GET | `/groups/:id/messages` | Group member | Group chat (S1), oldest first, with author `{ id, name }`. Query: `after` (ISO timestamp, for polling), `limit` (1-100, default 50). Without `after`, the latest `limit` messages. |
+| POST | `/groups/:id/messages` | Group member | Post a chat message `{ body }` (1-1000 characters). Also allowed after booking. |
 
 Outside `/api`: `GET /health`, `GET /api-docs`, `GET /api-docs.json`, and hotel photos at `GET /images/hotels/<file>.jpg` (the `image` field of a hotel option; credits in `/images/ATTRIBUTIONS.md`).
 
@@ -217,19 +219,22 @@ Backend for all Must Have features:
 
 Also finished:
 
+- G1 (filter results by shared interests and gender composition): `filters` on `POST /matches/search`. Filters only narrow results; they never add a group that fails a rule.
+- G2 (group member profile pages): `GET /travellers/:id` returns the profile with the groups the traveller is in.
+- S1 Chat: members of a group post and read messages on the group page (`/groups/:id/messages`), also after booking.
 - Swagger UI and OpenAPI JSON for every endpoint, with "Authorize" for `X-User-Id`.
 - Unit tests (Vitest) for the pure logic:
   - `src/utils/__tests__/matchRules.test.ts`
   - `src/utils/__tests__/ranking.test.ts`
   - `src/utils/__tests__/costCalculator.test.ts`
   - `src/utils/__tests__/dateUtils.test.ts`
+  - `src/utils/__tests__/matchFilters.test.ts`
+  - API tests in `src/__tests__/`: `travellers`, `groups`, `matching.seed`, `matching.rules` (every rule boundary with new travellers), `requests`, `planning` (hotels, saving, booking), `extras` (G1, G2, S1). Each file starts from a freshly seeded in-memory database.
 
 ## Known limitations
 
 - Demo identity only. The `X-User-Id` header is not authentication: anyone can send any traveller id. Real auth (for example OAuth) would replace `resolveTravellerId` in `src/middleware/auth.ts`. That function is the only place that reads the identity.
 - A rejected seeker cannot request the same group again. One request per seeker per group is stored, and a second request returns `409`.
 - Frontend: in progress. It is not in this repository yet.
-- G1 (filter results by shared interests and gender composition): not done.
-- G2 (group member profile pages): not done as a feature. `GET /travellers/:id` returns the profile, but not the groups the traveller is in.
-- S1 (chat): not done.
-- No integration tests against a database. The tests cover the pure rule, ranking, cost and date functions.
+- S1 (chat): polling only (`GET /groups/:id/messages?after=`), no WebSocket push. Messages cannot be edited or deleted.
+- The API tests run on PGlite, which has one connection, so parallel approvals and bookings are checked for correct results but not for real lock contention. In Postgres that is handled by `SELECT ... FOR UPDATE` on the group row.
