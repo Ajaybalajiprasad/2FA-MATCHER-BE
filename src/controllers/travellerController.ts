@@ -12,7 +12,7 @@ export const listTravellers = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const getTraveller = asyncHandler(async (req: Request, res: Response) => {
-  res.json(createSuccessResponse('Traveller fetched', await travellerService.getById(req.params.id)));
+  res.json(createSuccessResponse('Traveller fetched', await travellerService.getProfile(req.params.id)));
 });
 
 export const getMe = (req: Request, res: Response) => {

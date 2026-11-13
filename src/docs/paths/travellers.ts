@@ -26,9 +26,10 @@ export const travellerPaths = {
   '/api/travellers/{id}': {
     get: {
       tags: ['Travellers'],
-      summary: 'Traveller profile',
+      summary:
+        'Traveller profile page (G2): interests, home city, age, and the groups they are in (id, name, city, checkIn, checkOut, status, role OWNER|MEMBER, memberCount, maxSize), sorted by check-in then group id',
       parameters: [pathParam('id', 'T-001')],
-      responses: { 200: ok('Traveller'), 404: ok('Not found') },
+      responses: { 200: ok('Traveller profile with groups'), 404: ok('Not found') },
     },
   },
   '/api/me': {

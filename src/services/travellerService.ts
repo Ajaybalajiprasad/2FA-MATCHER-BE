@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { AppError } from '../middleware/errorHandler';
 import { catalogRepository } from '../repositories/CatalogRepository';
+import { groupRepository } from '../repositories/GroupRepository';
 import { TravellerRepository, travellerRepository } from '../repositories/TravellerRepository';
 import { ErrorCode } from '../types/errors';
 import type { Traveller } from '../types/traveller.types';
@@ -41,6 +42,26 @@ export class TravellerService {
     const traveller = await travellerRepository.findById(id);
     if (!traveller) throw new AppError('Traveller not found', 404, ErrorCode.NOT_FOUND);
     return traveller;
+  }
+
+  async getProfile(id: string) {
+    const traveller = await this.getById(id);
+    const groups = await groupRepository.findByMember(id);
+    const counts = await groupRepository.memberCounts(groups.map((g) => g.id));
+    return {
+      ...traveller,
+      groups: groups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        city: g.city,
+        checkIn: g.checkIn,
+        checkOut: g.checkOut,
+        status: g.status,
+        role: g.ownerId === id ? ('OWNER' as const) : ('MEMBER' as const),
+        memberCount: counts.get(g.id) ?? 0,
+        maxSize: g.maxSize,
+      })),
+    };
   }
 }
 
