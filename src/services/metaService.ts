@@ -4,8 +4,10 @@ import {
   GENDER_PREFERENCES,
   GENDERS,
   GROUP_SIZE,
+  HOTEL_SORTS,
   MATCH_RULES_CONFIG,
 } from '../config/businessRules';
+import { GENDER_MIXES } from '../utils/matchFilters';
 
 export class MetaService {
   async getMeta() {
@@ -20,6 +22,8 @@ export class MetaService {
       homeCities: homeCities.map(({ sortOrder: _s, ...h }) => h),
       genders: GENDERS,
       genderPreferences: GENDER_PREFERENCES,
+      genderMixes: GENDER_MIXES,
+      hotelSorts: HOTEL_SORTS,
       dateWindow: DATE_WINDOW,
       groupSize: GROUP_SIZE,
       matchRules: MATCH_RULES_CONFIG,

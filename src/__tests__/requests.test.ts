@@ -87,6 +87,8 @@ describe('M5 join requests', () => {
 
     const mine = await as(owner).get('/api/groups/mine');
     expect(mine.body.data.find((g: { id: string }) => g.id === groupId).pendingRequestCount).toBe(1);
+    expect((await as(owner).get(`/api/groups/${groupId}`)).body.data.pendingRequestCount).toBe(1);
+    expect((await as(seeker).get(`/api/groups/${groupId}`)).body.data.pendingRequestCount).toBeNull();
   });
 
   it('approves: adds the member, updates counts, and blocks a second decision', async () => {

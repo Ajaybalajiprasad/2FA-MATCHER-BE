@@ -25,6 +25,7 @@ export const RANK_WEIGHTS = {
 
 export const GENDERS = ['FEMALE', 'MALE'] as const;
 export const GENDER_PREFERENCES = ['ANY', 'SAME_GENDER'] as const;
+export const HOTEL_SORTS = ['price', 'rating', 'stars'] as const;
 
 export type Gender = (typeof GENDERS)[number];
 export type GenderPreference = (typeof GENDER_PREFERENCES)[number];

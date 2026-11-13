@@ -34,7 +34,7 @@ export const groupPaths = {
   '/api/groups/{id}': {
     get: {
       tags: ['Groups'],
-      summary: 'Group details with owner, members, seatsLeft and the caller’s join request status (X-User-Id optional)',
+      summary: 'Group details with owner, members, seatsLeft and the caller’s join request status; pendingRequestCount for the owner (X-User-Id optional)',
       security: [...asUser, {}],
       parameters: [pathParam('id', 'G-01')],
       responses: { 200: ok('Group'), 404: ok('Not found') },

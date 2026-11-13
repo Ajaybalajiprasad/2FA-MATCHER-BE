@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { HOTEL_SORTS } from '../config/businessRules';
 
 export const groupHotelsQuerySchema = z.object({
-  sort: z.enum(['price', 'rating', 'stars']).default('price'),
+  sort: z.enum(HOTEL_SORTS).default('price'),
   minStars: z.coerce.number().int().min(1).max(5).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),

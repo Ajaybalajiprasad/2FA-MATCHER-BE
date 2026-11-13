@@ -19,6 +19,8 @@ export interface HotelOption {
   hotelId: string;
   hotelName: string;
   area: string;
+  lat: number;
+  lng: number;
   rating: number;
   stars: number;
   image: string;
@@ -92,6 +94,8 @@ export class HotelService {
           hotelId: hotel.id,
           hotelName: hotel.name,
           area: hotel.area,
+          lat: hotel.lat,
+          lng: hotel.lng,
           rating: hotel.rating,
           stars: hotel.stars,
           image: hotel.image,

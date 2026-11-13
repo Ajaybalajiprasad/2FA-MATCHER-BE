@@ -89,6 +89,8 @@ export class MatchService {
         seatsLeft: seatsLeft(memberCount, g.maxSize),
         genderComposition: composition,
         budgetInr: g.budgetInr,
+        itinerary: g.itinerary,
+        interests: owner.interests,
         ownerId: owner.id,
         ownerName: owner.name,
         ...rankScore(ctx),

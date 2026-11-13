@@ -50,10 +50,12 @@ export class GroupService {
     const byId = new Map((await travellerRepository.findByIds(memberIds)).map((t) => [t.id, t]));
     const members = memberIds.flatMap((memberId) => byId.get(memberId) ?? []);
     const owner = members.find((m) => m.id === group.ownerId) ?? (await travellerRepository.findById(group.ownerId));
-    const [requestStatuses, city, booking] = await Promise.all([
+    const isOwner = callerId === group.ownerId;
+    const [requestStatuses, city, booking, pending] = await Promise.all([
       callerId ? groupRepository.requestStatusesForSeeker(callerId, [id]) : undefined,
       catalogRepository.findCity(group.city),
       this.bookingSummary(group),
+      isOwner ? groupRepository.pendingRequestCounts([id]) : undefined,
     ]);
     return {
       ...this.summary(group, members.length),
@@ -61,6 +63,7 @@ export class GroupService {
       owner: owner ? { id: owner.id, name: owner.name, gender: owner.gender } : null,
       members,
       myRequestStatus: requestStatuses?.get(id) ?? null,
+      pendingRequestCount: isOwner ? (pending?.get(id) ?? 0) : null,
       booking,
     };
   }
@@ -104,6 +107,9 @@ export class GroupService {
     return {
       id: booking.id,
       hotelName: found?.hotel.name ?? null,
+      area: found?.hotel.area ?? null,
+      lat: found?.hotel.lat ?? null,
+      lng: found?.hotel.lng ?? null,
       roomName: found?.room.name ?? null,
       totalInr: booking.totalInr,
       members: booking.members,

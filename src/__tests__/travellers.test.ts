@@ -7,7 +7,7 @@ describe('GET /api/meta', () => {
   it('returns the 5 cities with timezones, 16 interests and the date window', async () => {
     const res = await anon.get('/api/meta');
     expect(res.status).toBe(200);
-    const { cities, interests, dateWindow, groupSize, matchRules } = res.body.data;
+    const { cities, interests, dateWindow, groupSize, matchRules, genderMixes, hotelSorts } = res.body.data;
     expect(cities.map((c: { name: string }) => c.name).sort()).toEqual(['Abu Dhabi', 'Dubai', 'Kyoto', 'Osaka', 'Tokyo']);
     const tz = Object.fromEntries(cities.map((c: { name: string; timezone: string }) => [c.name, c.timezone]));
     expect(tz).toMatchObject({ Tokyo: 'Asia/Tokyo', Kyoto: 'Asia/Tokyo', Osaka: 'Asia/Tokyo', Dubai: 'Asia/Dubai', 'Abu Dhabi': 'Asia/Dubai' });
@@ -15,6 +15,8 @@ describe('GET /api/meta', () => {
     expect(interests[0]).toMatchObject({ id: expect.any(String), label: expect.any(String), category: expect.any(String) });
     expect(dateWindow).toEqual({ FIRST_CHECK_IN: '2027-04-01', LAST_CHECK_OUT: '2027-04-20' });
     expect(groupSize).toEqual({ MIN: 1, MAX: 4 });
+    expect(genderMixes).toEqual(['ALL_FEMALE', 'ALL_MALE', 'MIXED']);
+    expect(hotelSorts).toEqual(['price', 'rating', 'stars']);
     expect(matchRules).toEqual({ MIN_SHARED_NIGHTS: 2, MAX_BUDGET_DIFF_PERCENT: 40, MIN_SHARED_INTERESTS: 2 });
   });
 });
