@@ -3,7 +3,7 @@ import { asUser, jsonBody, ok, pathParam } from '../helpers';
 
 const queryParam = (name: string, schema: object, description: string) => ({ name, in: 'query', required: false, schema, description });
 
-const memberOnly = { 401: ok('Missing or unknown X-User-Id'), 403: ok('Caller is not a group member'), 404: ok('Group not found') };
+const memberOnly = { 401: ok('Missing or invalid token'), 403: ok('Caller is not a group member'), 404: ok('Group not found') };
 
 export const planningPaths = {
   '/api/groups/{id}/hotels': {

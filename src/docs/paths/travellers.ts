@@ -35,9 +35,9 @@ export const travellerPaths = {
   '/api/me': {
     get: {
       tags: ['Travellers'],
-      summary: 'Current traveller (from X-User-Id)',
+      summary: 'Current traveller (from the Bearer token)',
       security: asUser,
-      responses: { 200: ok('Current traveller'), 401: ok('Missing or unknown X-User-Id') },
+      responses: { 200: ok('Current traveller'), 401: ok('Missing or invalid token') },
     },
   },
 };

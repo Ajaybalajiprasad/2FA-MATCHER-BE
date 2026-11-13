@@ -51,9 +51,26 @@ export class TravellerRepository {
     return rows.map((r) => toTraveller(r, interests.get(r.id) ?? []));
   }
 
-  async create(traveller: Traveller): Promise<void> {
+  async findSeeded(): Promise<{ id: string; name: string; homeCity: string }[]> {
+    return this.conn
+      .select({ id: travellers.id, name: travellers.name, homeCity: travellers.homeCity })
+      .from(travellers)
+      .where(eq(travellers.isSeed, true))
+      .orderBy(asc(travellers.id));
+  }
+
+  async findCredentialsByEmail(email: string): Promise<{ id: string; passwordHash: string | null } | undefined> {
+    const [row] = await this.conn
+      .select({ id: travellers.id, passwordHash: travellers.passwordHash })
+      .from(travellers)
+      .where(eq(travellers.email, email))
+      .limit(1);
+    return row;
+  }
+
+  async create(traveller: Traveller, credentials: { email: string; passwordHash: string }): Promise<void> {
     const { interests, ...profile } = traveller;
-    await this.conn.insert(travellers).values(profile);
+    await this.conn.insert(travellers).values({ ...profile, ...credentials });
     await this.conn
       .insert(travellerInterests)
       .values(interests.map((interestId, sortOrder) => ({ travellerId: traveller.id, interestId, sortOrder })));

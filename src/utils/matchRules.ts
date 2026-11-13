@@ -77,13 +77,15 @@ export const MATCH_RULES: MatchRule[] = [
   {
     id: 'GENDER',
     label: 'Gender preference',
-    check: ({ seeker, owner }) => {
-      const seekerOk = genderAllows(seeker.genderPreference, seeker.gender, owner.gender);
-      const ownerOk = genderAllows(owner.genderPreference, owner.gender, seeker.gender);
-      const pass = seekerOk && ownerOk;
+    check: ({ seeker, group, owner }) => {
+      // The trip's own setting decides who may join, not the owner's profile.
+      const groupOk = genderAllows(group.genderPreference as GenderPreference, owner.gender, seeker.gender);
+      const otherGender = seeker.gender === 'FEMALE' ? group.memberGenders.male : group.memberGenders.female;
+      const seekerOk = seeker.genderPreference === 'ANY' || otherGender === 0;
+      const pass = seekerOk && groupOk;
       let detail = 'Both preferences allow each other';
-      if (!ownerOk) detail = `Owner travels only with ${owner.gender.toLowerCase()} travellers`;
-      else if (!seekerOk) detail = `You prefer ${seeker.gender.toLowerCase()} only; owner is ${owner.gender.toLowerCase()}`;
+      if (!groupOk) detail = `This trip is ${owner.gender.toLowerCase()} travellers only`;
+      else if (!seekerOk) detail = `You prefer ${seeker.gender.toLowerCase()} only; this group has other genders`;
       return { pass, detail };
     },
   },

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { GROUP_SIZE } from '../config/businessRules';
+import { GENDER_PREFERENCES, GROUP_SIZE } from '../config/businessRules';
 
 export const createGroupSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -9,6 +9,8 @@ export const createGroupSchema = z.object({
   maxSize: z.number().int().min(GROUP_SIZE.MIN).max(GROUP_SIZE.MAX),
   budgetInr: z.number().int().positive(),
   itinerary: z.string().trim().min(1).max(2000),
+  // Per trip; defaults to the owner's profile setting.
+  genderPreference: z.enum(GENDER_PREFERENCES).optional(),
 });
 
 export const groupIdParamSchema = z.object({ id: z.string().min(1) });

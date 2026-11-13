@@ -37,7 +37,7 @@ export class GroupService {
     const id = newId('G');
     await db.transaction(async (tx) => {
       const repo = new GroupRepository(tx);
-      await repo.create({ id, ownerId: owner.id, status: 'OPEN', ...input });
+      await repo.create({ id, ownerId: owner.id, status: 'OPEN', ...input, genderPreference: input.genderPreference ?? owner.genderPreference });
       await repo.addMember(id, owner.id);
     });
     return this.getById(id, owner.id);

@@ -8,7 +8,8 @@ import { ErrorCode } from '../types/errors';
 import type { MatchContext, SeekerCriteria } from '../types/match.types';
 import type { Traveller } from '../types/traveller.types';
 import { newId } from '../utils/id';
-import { evaluateMatch, hasSeatFor, seatsLeft } from '../utils/matchRules';
+import type { GenderPreference } from '../config/businessRules';
+import { evaluateMatch, genderAllows, hasSeatFor, seatsLeft } from '../utils/matchRules';
 import type { DecideRequestInput, ListRequestsQuery } from '../validators/requestValidators';
 
 const criteriaOf = (search: Search): SeekerCriteria => ({
@@ -21,9 +22,11 @@ const criteriaOf = (search: Search): SeekerCriteria => ({
   genderPreference: search.genderPreference as SeekerCriteria['genderPreference'],
 });
 
-const contextOf = (search: Search, group: Group, memberCount: number, owner: Traveller): MatchContext => ({
+type MemberGenders = MatchContext['group']['memberGenders'];
+
+const contextOf = (search: Search, group: Group, memberCount: number, owner: Traveller, memberGenders: MemberGenders): MatchContext => ({
   seeker: criteriaOf(search),
-  group: { ...group, memberCount },
+  group: { ...group, memberCount, memberGenders },
   owner,
 });
 
@@ -31,19 +34,21 @@ export class RequestService {
   private async loadGroup(groupId: string) {
     const group = await groupRepository.findById(groupId);
     if (!group) throw new AppError('Group not found', 404, ErrorCode.NOT_FOUND);
-    const [owner, memberIds] = await Promise.all([
+    const [owner, memberIds, genderCounts] = await Promise.all([
       travellerRepository.findById(group.ownerId),
       groupRepository.findMemberIds(groupId),
+      groupRepository.memberGenderCounts([groupId]),
     ]);
     if (!owner) throw new AppError('Group owner not found', 404, ErrorCode.NOT_FOUND);
-    return { group, owner, memberIds };
+    const memberGenders = genderCounts.get(groupId) ?? { female: 0, male: 0 };
+    return { group, owner, memberIds, memberGenders };
   }
 
   async create(seeker: Traveller, groupId: string, searchId: string) {
     const search = await searchRepository.findById(searchId);
     if (!search) throw new AppError('Search not found', 404, ErrorCode.NOT_FOUND);
     if (search.seekerId !== seeker.id) throw new AppError('This search belongs to another traveller', 403, ErrorCode.FORBIDDEN);
-    const { group, owner, memberIds } = await this.loadGroup(groupId);
+    const { group, owner, memberIds, memberGenders } = await this.loadGroup(groupId);
     if (memberIds.includes(seeker.id)) throw new AppError('You are already a member of this group', 409, ErrorCode.CONFLICT);
     if (group.status !== 'OPEN') throw new AppError('Group is not open for requests', 409, ErrorCode.CONFLICT);
     const existing = await joinRequestRepository.findByGroupAndSeeker(groupId, seeker.id);
@@ -53,7 +58,7 @@ export class RequestService {
         status: existing.status,
       });
     }
-    const evaluation = evaluateMatch(contextOf(search, group, memberIds.length, owner));
+    const evaluation = evaluateMatch(contextOf(search, group, memberIds.length, owner, memberGenders));
     if (!evaluation.matched) {
       throw new AppError(
         `Group does not match your search: ${evaluation.failedRules.join(', ')}`,
@@ -68,7 +73,7 @@ export class RequestService {
   }
 
   async listForGroup(callerId: string, groupId: string, { status }: ListRequestsQuery) {
-    const { group, owner, memberIds } = await this.loadGroup(groupId);
+    const { group, owner, memberIds, memberGenders } = await this.loadGroup(groupId);
     if (group.ownerId !== callerId) throw new AppError('Only the group owner can see requests', 403, ErrorCode.FORBIDDEN);
     const requests = await joinRequestRepository.findByGroup(groupId, status === 'ALL' ? undefined : status);
     const [seekers, searches] = await Promise.all([
@@ -88,7 +93,7 @@ export class RequestService {
         criteria: search
           ? { checkIn: search.checkIn, checkOut: search.checkOut, budgetInr: search.budgetInr, interests: search.interests }
           : null,
-        rules: search ? evaluateMatch(contextOf(search, group, memberIds.length, owner)).rules : null,
+        rules: search ? evaluateMatch(contextOf(search, group, memberIds.length, owner, memberGenders)).rules : null,
       };
     });
   }
@@ -101,6 +106,9 @@ export class RequestService {
     if (group.ownerId !== callerId) throw new AppError('Only the group owner can decide requests', 403, ErrorCode.FORBIDDEN);
     const alreadyDecided = () => new AppError(`Request is already ${request.status}`, 409, ErrorCode.CONFLICT);
     if (request.status !== 'PENDING') throw alreadyDecided();
+
+    // Outside the transaction: these reads use the shared connection, not the transaction's.
+    if (action === 'APPROVE') await this.assertGenderStillAllowed(request.seekerId, request.searchId, group);
 
     const updated = await db.transaction(async (tx) => {
       const requests = new JoinRequestRepository(tx);
@@ -118,6 +126,23 @@ export class RequestService {
 
     const memberCount = (await groupRepository.memberCounts([group.id])).get(group.id) ?? 0;
     return { ...updated, memberCount, seatsLeft: seatsLeft(memberCount, group.maxSize) };
+  }
+
+  // Membership can change between request and approval, so the gender rule is checked again here.
+  private async assertGenderStillAllowed(seekerId: string, searchId: string | null, group: Group) {
+    const [seeker, owner, search, genderCounts] = await Promise.all([
+      travellerRepository.findById(seekerId),
+      travellerRepository.findById(group.ownerId),
+      searchId ? searchRepository.findById(searchId) : undefined,
+      groupRepository.memberGenderCounts([group.id]),
+    ]);
+    if (!seeker || !owner) throw new AppError('Traveller not found', 404, ErrorCode.NOT_FOUND);
+    const memberGenders = genderCounts.get(group.id) ?? { female: 0, male: 0 };
+    const preference = (search?.genderPreference ?? seeker.genderPreference) as GenderPreference;
+    const otherGender = seeker.gender === 'FEMALE' ? memberGenders.male : memberGenders.female;
+    const groupOk = genderAllows(group.genderPreference as GenderPreference, owner.gender, seeker.gender);
+    const seekerOk = preference === 'ANY' || otherGender === 0;
+    if (!groupOk || !seekerOk) throw new AppError('Gender preference no longer allows this request', 422, ErrorCode.RULE_NOT_MET);
   }
 
   async listMine(seekerId: string) {

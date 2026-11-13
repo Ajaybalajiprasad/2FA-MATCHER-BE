@@ -4,12 +4,17 @@ import { ErrorCode } from '../types/errors';
 import { asyncHandler } from '../utils/asyncHandler';
 import { AppError } from './errorHandler';
 
-// The only place that knows how a user is identified. Swap this for OAuth token verification later.
-const resolveTravellerId = (req: Request): string | undefined => req.header('X-User-Id')?.trim() || undefined;
+import { verifyToken } from '../utils/auth';
+
+// The only place that knows how a user is identified: a signed Bearer token from sign-up or sign-in.
+const resolveTravellerId = (req: Request): string | undefined => {
+  const [scheme, token] = req.header('Authorization')?.split(' ') ?? [];
+  return scheme === 'Bearer' && token ? verifyToken(token) : undefined;
+};
 
 export const requireUser = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const id = resolveTravellerId(req);
-  if (!id) throw new AppError('Sign up or pick a traveller first', 401, ErrorCode.UNAUTHORIZED);
+  if (!id) throw new AppError('Sign in or sign up first', 401, ErrorCode.UNAUTHORIZED);
 
   const traveller = await travellerRepository.findById(id);
   if (!traveller) throw new AppError('Unknown traveller', 401, ErrorCode.UNAUTHORIZED);
@@ -18,7 +23,7 @@ export const requireUser = asyncHandler(async (req: Request, _res: Response, nex
   next();
 });
 
-// Unknown or missing X-User-Id is ignored: the route works anonymously.
+// A missing or invalid token is ignored: the route works anonymously.
 export const optionalUser = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   const id = resolveTravellerId(req);
   if (id) req.user = await travellerRepository.findById(id);

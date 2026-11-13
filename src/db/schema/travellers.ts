@@ -9,6 +9,8 @@ export const travellers = pgTable('travellers', {
   homeCity: text('home_city').notNull(),
   homeAirport: text('home_airport'),
   genderPreference: text('gender_preference').notNull(), // ANY | SAME_GENDER
+  email: text('email').unique(), // lower-cased login
+  passwordHash: text('password_hash'), // scrypt salt:hash
   isSeed: boolean('is_seed').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });

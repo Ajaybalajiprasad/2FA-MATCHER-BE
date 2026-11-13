@@ -7,6 +7,18 @@ export const signUp = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(createSuccessResponse('Signed up', await travellerService.signUp(req.body)));
 });
 
+export const signIn = asyncHandler(async (req: Request, res: Response) => {
+  res.json(createSuccessResponse('Signed in', await travellerService.signIn(req.body)));
+});
+
+export const listDemoTravellers = asyncHandler(async (_req: Request, res: Response) => {
+  res.json(createSuccessResponse('Demo travellers fetched', await travellerService.listDemo()));
+});
+
+export const demoSignIn = asyncHandler(async (req: Request, res: Response) => {
+  res.json(createSuccessResponse('Signed in', await travellerService.demoSignIn(req.body.id)));
+});
+
 export const listTravellers = asyncHandler(async (_req: Request, res: Response) => {
   res.json(createSuccessResponse('Travellers fetched', await travellerService.list()));
 });
