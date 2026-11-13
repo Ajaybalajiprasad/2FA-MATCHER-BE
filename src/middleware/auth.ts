@@ -17,3 +17,10 @@ export const requireUser = asyncHandler(async (req: Request, _res: Response, nex
   req.user = traveller;
   next();
 });
+
+// Unknown or missing X-User-Id is ignored: the route works anonymously.
+export const optionalUser = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  const id = resolveTravellerId(req);
+  if (id) req.user = await travellerRepository.findById(id);
+  next();
+});
