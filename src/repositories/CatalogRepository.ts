@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { db, type DbOrTx } from '../db';
 import { cities, homeCities, interests } from '../db/schema';
 
@@ -16,6 +16,13 @@ export class CatalogRepository {
 
   findAllInterests() {
     return this.conn.select().from(interests).orderBy(asc(interests.sortOrder), asc(interests.id));
+  }
+
+  async findUnknownInterests(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.conn.select({ id: interests.id }).from(interests).where(inArray(interests.id, ids));
+    const known = new Set(rows.map((r) => r.id));
+    return ids.filter((id) => !known.has(id));
   }
 
   findAllHomeCities() {
