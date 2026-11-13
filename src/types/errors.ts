@@ -1,0 +1,11 @@
+/** Single source of truth for error codes returned by the API. */
+export enum ErrorCode {
+  VALIDATION_FAILED = 'VALIDATION_FAILED',
+  OUT_OF_DATA_RANGE = 'OUT_OF_DATA_RANGE',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  CONFLICT = 'CONFLICT',
+  RULE_NOT_MET = 'RULE_NOT_MET',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+}
