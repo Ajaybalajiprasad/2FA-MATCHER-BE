@@ -1,3 +1,4 @@
+import { env } from '../config/env';
 import { db } from '../db';
 import { AppError } from '../middleware/errorHandler';
 import { catalogRepository } from '../repositories/CatalogRepository';
@@ -7,7 +8,8 @@ import { TravellerRepository, travellerRepository } from '../repositories/Travel
 import { ErrorCode } from '../types/errors';
 import type { Traveller } from '../types/traveller.types';
 import { newId } from '../utils/id';
-import type { SignUpInput } from '../validators/travellerValidators';
+import { hashPassword, signToken, verifyPassword } from '../utils/auth';
+import type { SignInInput, SignUpInput } from '../validators/travellerValidators';
 
 export class TravellerService {
   async assertKnownInterests(interests: string[]): Promise<void> {
@@ -17,9 +19,12 @@ export class TravellerService {
     }
   }
 
-  async signUp(input: SignUpInput): Promise<Traveller> {
+  async signUp(input: SignUpInput): Promise<Traveller & { token: string }> {
     const interests = [...new Set(input.interests)];
     await this.assertKnownInterests(interests);
+    if (await travellerRepository.findCredentialsByEmail(input.email)) {
+      throw new AppError('An account with this email already exists', 409, ErrorCode.CONFLICT);
+    }
 
     const traveller: Traveller = {
       id: newId('T'),
@@ -31,8 +36,35 @@ export class TravellerService {
       genderPreference: input.genderPreference,
       interests,
     };
-    await db.transaction((tx) => new TravellerRepository(tx).create(traveller));
-    return traveller;
+    const credentials = { email: input.email, passwordHash: hashPassword(input.password) };
+    await db.transaction((tx) => new TravellerRepository(tx).create(traveller, credentials));
+    return { ...traveller, token: signToken(traveller.id) };
+  }
+
+  async signIn({ email, password }: SignInInput): Promise<Traveller & { token: string }> {
+    const credentials = await travellerRepository.findCredentialsByEmail(email);
+    if (!credentials || !verifyPassword(password, credentials.passwordHash)) {
+      throw new AppError('Wrong email or password', 401, ErrorCode.UNAUTHORIZED);
+    }
+    return { ...(await this.getById(credentials.id)), token: signToken(credentials.id) };
+  }
+
+  private assertDemoSwitch(): void {
+    if (env.DEMO_SWITCH !== 'true') throw new AppError('Demo switching is turned off', 403, ErrorCode.FORBIDDEN);
+  }
+
+  async listDemo() {
+    this.assertDemoSwitch();
+    return travellerRepository.findSeeded();
+  }
+
+  // Demo only: seeded travellers can be entered without a password. Real accounts cannot.
+  async demoSignIn(id: string): Promise<Traveller & { token: string }> {
+    this.assertDemoSwitch();
+    if (!(await travellerRepository.findSeeded()).some((t) => t.id === id)) {
+      throw new AppError('Only seeded demo travellers can be switched to', 403, ErrorCode.FORBIDDEN);
+    }
+    return { ...(await this.getById(id)), token: signToken(id) };
   }
 
   list(): Promise<Traveller[]> {
@@ -48,8 +80,11 @@ export class TravellerService {
   async getProfile(id: string, viewerId?: string) {
     const traveller = await this.getById(id);
     const friendship = viewerId && viewerId !== id ? await friendRepository.findPair(viewerId, id) : undefined;
-    const canViewGroups = viewerId === id || friendship?.status === 'ACCEPTED';
-    // Basic profiles remain discoverable. Never fetch or return group details to non-friends.
+    // Friends and anyone travelling in a group with this person see their groups. Strangers never do.
+    const canViewGroups =
+      viewerId === id ||
+      friendship?.status === 'ACCEPTED' ||
+      (viewerId !== undefined && (await groupRepository.shareAGroup(viewerId, id)));
     if (!canViewGroups) return { ...traveller, canViewGroups: false, groups: [] };
     const groups = await groupRepository.findByMember(id);
     const counts = await groupRepository.memberCounts(groups.map((g) => g.id));

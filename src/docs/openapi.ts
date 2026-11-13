@@ -12,7 +12,7 @@ export const openApiSpec = {
   info: { title: 'Group Travel Matcher API', version: '1.0.0' },
   components: {
     securitySchemes: {
-      userId: { type: 'apiKey', in: 'header', name: 'X-User-Id', description: 'Traveller ID, e.g. T-001' },
+      userId: { type: 'http', scheme: 'bearer', description: 'Token from POST /api/travellers or POST /api/travellers/sign-in' },
     },
   },
   paths: {

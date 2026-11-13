@@ -13,7 +13,7 @@ const priyaSearchesSarah = (): MatchContext => ({
     gender: 'FEMALE',
     genderPreference: 'SAME_GENDER',
   },
-  group: { id: 'G-01', city: 'Kyoto', checkIn: '2027-04-10', checkOut: '2027-04-15', budgetInr: 60000, maxSize: 3, memberCount: 1 },
+  group: { id: 'G-01', city: 'Kyoto', checkIn: '2027-04-10', checkOut: '2027-04-15', budgetInr: 60000, maxSize: 3, memberCount: 1, genderPreference: 'SAME_GENDER', memberGenders: { female: 1, male: 0 } },
   owner: {
     gender: 'FEMALE',
     genderPreference: 'SAME_GENDER',

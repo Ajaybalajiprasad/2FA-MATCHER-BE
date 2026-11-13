@@ -12,7 +12,7 @@ export const requestPaths = {
       responses: {
         201: ok('PENDING join request'),
         400: ok('Validation failed'),
-        401: ok('Missing or unknown X-User-Id'),
+        401: ok('Missing or invalid token'),
         403: ok('Search belongs to another traveller'),
         404: ok('Group or search not found'),
         409: ok('Already a member, group not open, or a request already exists (details.status)'),
@@ -34,7 +34,7 @@ export const requestPaths = {
       ],
       responses: {
         200: ok('Requests ordered by createdAt asc, id asc'),
-        401: ok('Missing or unknown X-User-Id'),
+        401: ok('Missing or invalid token'),
         403: ok('Caller is not the owner'),
         404: ok('Group not found'),
       },
@@ -45,7 +45,7 @@ export const requestPaths = {
       tags: ['Requests'],
       summary: 'The caller’s join requests with group name, city, dates and status',
       security: asUser,
-      responses: { 200: ok('Requests ordered by createdAt desc, id asc'), 401: ok('Missing or unknown X-User-Id') },
+      responses: { 200: ok('Requests ordered by createdAt desc, id asc'), 401: ok('Missing or invalid token') },
     },
   },
   '/api/requests/{requestId}': {
@@ -58,7 +58,7 @@ export const requestPaths = {
       responses: {
         200: ok('Updated request with memberCount and seatsLeft'),
         400: ok('Validation failed'),
-        401: ok('Missing or unknown X-User-Id'),
+        401: ok('Missing or invalid token'),
         403: ok('Caller is not the owner'),
         404: ok('Request not found'),
         409: ok('Request already decided, group not open, or group is full'),

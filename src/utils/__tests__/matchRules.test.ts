@@ -21,6 +21,8 @@ const priyaSearchesSarah = (): MatchContext => ({
     budgetInr: 60000,
     maxSize: 3,
     memberCount: 1,
+    genderPreference: 'SAME_GENDER',
+    memberGenders: { female: 1, male: 0 },
   },
   owner: {
     gender: 'FEMALE',
@@ -79,10 +81,26 @@ describe('matchRules', () => {
   it('gender: checks both ways', () => {
     const ctx = priyaSearchesSarah();
     ctx.owner.gender = 'MALE';
-    ctx.owner.genderPreference = 'ANY';
+    ctx.group.genderPreference = 'ANY';
+    ctx.group.memberGenders = { female: 0, male: 1 };
     expect(failed(ctx)).toEqual(['GENDER']);
     ctx.seeker.genderPreference = 'ANY';
     expect(failed(ctx)).toEqual([]);
+  });
+
+  it('gender: the trip setting wins over the owner profile', () => {
+    const ctx = priyaSearchesSarah();
+    ctx.owner.genderPreference = 'ANY';
+    ctx.seeker.gender = 'MALE';
+    ctx.seeker.genderPreference = 'ANY';
+    expect(failed(ctx)).toEqual(['GENDER']);
+  });
+
+  it('gender: a SAME_GENDER seeker skips a group that already has other genders', () => {
+    const ctx = priyaSearchesSarah();
+    ctx.group.genderPreference = 'ANY';
+    ctx.group.memberGenders = { female: 1, male: 1 };
+    expect(failed(ctx)).toEqual(['GENDER']);
   });
 
   it('group size: 2 of 3 matches, 3 of 3 is full', () => {

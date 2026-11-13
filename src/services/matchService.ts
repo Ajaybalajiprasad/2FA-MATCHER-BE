@@ -75,9 +75,9 @@ export class MatchService {
       const owner = ownerById.get(g.ownerId);
       if (!owner) return [];
       const memberCount = counts.get(g.id) ?? 0;
-      const ctx: MatchContext = { seeker: criteria, group: { ...g, memberCount }, owner };
-      const evaluation = evaluateMatch(ctx);
       const genders = genderCounts.get(g.id) ?? { female: 0, male: 0 };
+      const ctx: MatchContext = { seeker: criteria, group: { ...g, memberCount, memberGenders: genders }, owner };
+      const evaluation = evaluateMatch(ctx);
       const composition = genderComposition(genders.female, genders.male);
       const item = {
         groupId: g.id,

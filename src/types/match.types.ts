@@ -18,6 +18,8 @@ export interface GroupForMatch {
   budgetInr: number;
   maxSize: number;
   memberCount: number;
+  genderPreference: string; // ANY | SAME_GENDER, set per trip
+  memberGenders: { female: number; male: number };
 }
 
 export interface OwnerForMatch {

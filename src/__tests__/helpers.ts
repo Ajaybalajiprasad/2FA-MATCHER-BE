@@ -4,7 +4,9 @@ import app from '../app';
 
 export { resetDb } from './testDb';
 
-const withUser = (req: Test, userId?: string) => (userId ? req.set('X-User-Id', userId) : req);
+import { signToken } from '../utils/auth';
+
+const withUser = (req: Test, userId?: string) => (userId ? req.set('Authorization', `Bearer ${signToken(userId)}`) : req);
 
 export const as = (userId?: string) => ({
   get: (url: string) => withUser(request(app).get(url), userId),
@@ -18,11 +20,15 @@ export const anon = as();
 type Gender = 'FEMALE' | 'MALE';
 type Pref = 'ANY' | 'SAME_GENDER';
 
+let signUps = 0;
+
 export const signUp = async (
   overrides: Partial<{ name: string; gender: Gender; genderPreference: Pref; interests: string[]; age: number; homeCity: string }> = {}
 ): Promise<string> => {
   const res = await anon.post('/api/travellers', {
     name: 'Test Traveller',
+    email: `t${++signUps}-${Date.now()}@test.dev`,
+    password: 'password123',
     age: 28,
     gender: 'FEMALE',
     homeCity: 'Mumbai',

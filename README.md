@@ -1,261 +1,88 @@
-# Group Travel Matcher (backend)
+# Group Travel Matcher: backend
 
-Backend for Hackathon Problem 3, Group Travel Matcher. A traveller signs up, creates a group post, or searches for a group to join. The API returns matching groups that pass all 6 matching rules, ranked by fit, with a reason for each rule. It also returns "near misses" with a suggestion. The seeker requests to join, and the group owner approves or rejects. Members then use the Common Group Page endpoints to search hotels for the group's city and dates, see the total and per-member cost, save options, and finalize one booking. Stack: Node.js, TypeScript, Express, Drizzle ORM, PostgreSQL, Zod, Swagger UI, Vitest.
+REST API for Hackathon Problem 3. Travellers sign up, post a trip (a group) or search for one. A search returns groups that pass all six matching rules, ranked by fit, plus near misses that fail exactly one rule. The seeker requests to join, the owner approves or rejects, and members then pick and book one hotel together.
 
-## Quick start
+Node 24, TypeScript, Express, Drizzle, PostgreSQL, Zod, Vitest.
 
-Prerequisites: Node.js 22+, pnpm, and PostgreSQL (local or hosted, for example Neon).
+## Run
 
-```bash
-cp .env.example .env      # then set DATABASE_URL
-pnpm install
-pnpm dev                  # applies migrations, seeds the data pack on first start, starts on :8000
-```
+Needs Node 24, pnpm and a PostgreSQL database (local or hosted).
 
-On Windows, use `Copy-Item .env.example .env` for the first command. Configure
-`DATABASE_URL` privately. For Neon on networks that interrupt PostgreSQL traffic
-on port 5432, set `DATABASE_TRANSPORT=websocket` to use its transaction-capable
-port-443 driver. Leave `DATABASE_TRANSPORT=tcp` for ordinary/local PostgreSQL.
+    cp .env.example .env
+    pnpm install
+    pnpm dev
 
-After setup, the full app takes two startup commands in two terminals:
-`pnpm dev` here and `npm run dev` in the frontend repository. The frontend uses
-`http://localhost:5173` and proxies API calls to `http://localhost:8000` by default.
+Edit `.env` before the first start:
 
-`DATABASE_URL` examples:
-
-- Local: `postgres://postgres:postgres@localhost:5432/travel_matcher`
-- Neon: `postgres://USER:PASSWORD@HOST.neon.tech/DB?sslmode=verify-full`
-
-Other commands:
-
-| Command | What it does |
+| Variable | Meaning |
 | --- | --- |
-| `pnpm db:reset` | Recreates app tables and reseeds a disposable development database. Not needed for normal startup or demo forms. |
-| `pnpm start` | Starts the server without file watching. |
-| `pnpm seed` | Applies migrations and seeds only if the DB is empty. |
-| `pnpm test` | Runs pure-logic and API tests against isolated in-memory PostgreSQL (PGlite), including matching boundaries, pricing, approvals, friendships/privacy and bounded result windows. Your configured database is not reset. |
-| `pnpm typecheck` | Runs `tsc --noEmit`. |
+| `DATABASE_URL` | PostgreSQL connection string. |
+| `AUTH_SECRET` | Signs login tokens. At least 32 characters. `openssl rand -hex 32` |
+| `DEMO_PASSWORD` | Password of the seeded travellers. Default `demo1234`. |
+| `DEMO_SWITCH` | `true` lets anyone enter a seeded traveller without a password. Default `true`. Set `false` outside demos. |
+| `PORT` | Default `8000`. |
+| `DATA_DIR` | Path to the data pack. The default is correct. |
 
-URLs:
+`pnpm dev` applies migrations, seeds the data pack if the database is empty, then listens on `:8000`. With a hosted database the first start can take up to a minute. Wait for `Server running`.
 
-- API base: `http://localhost:8000/api`
+- API: `http://localhost:8000/api`
 - Swagger UI: `http://localhost:8000/api-docs`
-- OpenAPI JSON: `http://localhost:8000/api-docs.json`
 - Health: `http://localhost:8000/health`
 
-Identity: send the header `X-User-Id: <traveller id>`, for example `T-001` (Sarah) or `T-002` (Priya). A new traveller gets an id from `POST /api/travellers`. In Swagger UI, click "Authorize" to set the header for all calls.
+## Commands
 
-All responses use one envelope: `{ success, message, data }` on success and `{ success: false, message, error }` on failure.
-
-## Architecture
-
-Request flow:
-
-```
-Route -> Controller -> Service -> Repository -> Drizzle -> PostgreSQL
-```
-
-- Routes declare the path, the auth middleware (`requireUser` / `optionalUser`) and Zod validation.
-- Controllers read the validated input and wrap the result in the response envelope.
-- Services hold the business logic and call the pure rule functions in `src/utils/`.
-- Repositories hold all SQL (Drizzle queries). Services never build queries.
-
-Folder map (`src/`):
-
-| Folder | Contents |
+| Command | Does |
 | --- | --- |
-| `server.ts`, `app.ts` | Startup (migrate, seed, listen, graceful shutdown) and the Express app (CORS, JSON, Swagger, routes, error handler). |
-| `routes/` | One router per area. `routes/index.ts` mounts them under `/api`. |
-| `controllers/` | Thin HTTP handlers. |
-| `services/` | Business logic: travellers, groups, matching, join requests, hotels, planning/booking, meta. |
-| `repositories/` | Drizzle data access, one class per aggregate. Accepts a transaction for atomic writes. |
-| `validators/` | Zod schemas for bodies, params and queries. |
-| `middleware/` | `auth.ts` (identity), `validate.ts` (Zod), `errorHandler.ts` (`AppError` to HTTP status). |
-| `utils/` | Pure logic: `matchRules.ts`, `ranking.ts`, `costCalculator.ts`, `dateUtils.ts`, plus ids, logger, response helpers. Unit tests in `utils/__tests__/`. |
-| `config/` | `env.ts` (environment) and `businessRules.ts` (all rule numbers). |
-| `db/` | Drizzle client and migrator (`index.ts`), schema (`schema/`), data pack reader (`dataPack.ts`), seeder (`seed.ts`). |
-| `docs/` | OpenAPI spec for Swagger UI, one file per area in `docs/paths/`. |
-| `scripts/` | CLI scripts (`seed.ts`, `reset.ts`). |
-| `types/` | Shared types and error codes. |
+| `pnpm dev` | Start with file watching. |
+| `pnpm start` | Start without watching. |
+| `pnpm test` | Unit and API tests on in-memory Postgres (PGlite). Never touches `DATABASE_URL`. |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm db:reset` | Drop all tables, migrate, seed again. Deletes everything. |
+| `pnpm db:generate` | Create a migration after a schema change in `src/db/schema`. |
 
-SQL migrations are in `drizzle/` (generated by `drizzle-kit`).
+## Auth
 
-Data flow:
+`POST /api/travellers` (sign up) and `POST /api/travellers/sign-in` return the traveller with a `token`. Send it on every other call:
 
-- The data pack JSON files (`hackathon-problem-3-group-travel-matcher/data`) are read only by the seeder. The seeder runs once, when the DB is empty, inside one transaction.
-- After that, the API reads only the database. Sign-ups, new groups, searches, requests, saved options and bookings are stored in Postgres, so they survive restarts.
-- The data files are never written.
+    Authorization: Bearer <token>
 
-Database portability:
+Tokens last 7 days. While `DEMO_SWITCH` is on, `POST /api/travellers/demo/sign-in` with `{ "id": "T-001" }` returns a token for a seeded traveller with no password. Accounts created through sign-up are never reachable this way. Seeded travellers sign in as `<id>@demo.travel`, for example `t-001@demo.travel`, with `DEMO_PASSWORD`.
 
-- The default `node-postgres` driver works with PostgreSQL. To switch databases, change `DATABASE_URL`. Neon also supports the optional `DATABASE_TRANSPORT=websocket` driver.
-- All rule logic (matching, ranking, cost split, dates) is plain TypeScript, not SQL, so it does not depend on database features.
-- Repository queries use explicit `ORDER BY`, so result order is deterministic.
+## Matching rules
 
-Business rules: every rule number (minimum shared nights, budget percent, minimum shared interests, date window, group size, ranking weights) is in `src/config/businessRules.ts`. This file is the single source of truth. `GET /api/meta` also returns these values to the client.
+A group matches a search when all six pass. The same check runs again when a join request is created, so the rules cannot be skipped by calling the API directly.
 
-## Matching
+1. Same city.
+2. At least 2 shared nights.
+3. Budgets within 40% of the lower one.
+4. At least 2 interests shared with the owner.
+5. Gender. Each trip is `ANY` or `SAME_GENDER`, set when the trip is created. A `SAME_GENDER` trip only takes travellers of the owner's gender. A seeker searching with `SAME_GENDER` only matches groups whose members all share their gender. Checked again on approval.
+6. A free seat.
 
-A group matches a seeker only if all 6 rules pass (`src/utils/matchRules.ts`). The seeker's criteria come from the search body. The seeker's gender comes from their profile. The gender preference comes from the search body, or from the profile if the body omits it. Interests are compared with the group owner's interests.
+Thresholds are in `src/config/businessRules.ts`.
 
-| Rule id | Rule | Pass condition |
-| --- | --- | --- |
-| `SAME_CITY` | Same destination | `seeker.city === group.city` |
-| `DATES_OVERLAP` | Dates overlap | shared nights `>= 2`. Shared nights = days from `max(checkIn)` to `min(checkOut)`. The check-out day is not a night. |
-| `BUDGET` | Budget compatible | `\|a - b\| * 100 <= 40 * min(a, b)` (integer math, so exactly 40% passes) |
-| `SHARED_INTERESTS` | Shared interests | `\|seeker.interests ∩ owner.interests\| >= 2` |
-| `GENDER` | Gender preference | (seeker pref is `ANY` or seeker gender = owner gender) and (owner pref is `ANY` or owner gender = seeker gender) |
-| `GROUP_SIZE` | Group has space | `memberCount + 1 <= maxSize` |
+## Layout
 
-Each result lists every rule with `pass` and a readable `detail`, for example "5 shared nights (2027-04-10 to 2027-04-14), need 2".
+    src/routes        URL to controller
+    src/controllers   HTTP in and out
+    src/services      business logic
+    src/repositories  SQL
+    src/utils         pure functions: rules, ranking, dates, cost, auth
+    src/db/schema     tables
+    src/__tests__     API tests
+    drizzle/          migrations, applied on start
 
-Ranking (`src/utils/ranking.ts`), with weights from `RANK_WEIGHTS`:
+Responses are `{ success, message, data }` or `{ success: false, message, error }`.
 
-```
-score = 40 * sharedInterests / seekerInterests
-      + 30 * clamp01(sharedNights / seekerNights)
-      + 20 * clamp01(1 - |budgetDiff| / (0.40 * min(budgets)))
-      + 10 * clamp01(seatsLeft / maxSize)
-```
+## Problems
 
-The score is rounded to 1 decimal. Tie-breaks, in order: higher score, more shared nights, earlier group check-in, then group id (A to Z).
+- `AUTH_SECRET is missing`: add it to `.env`. nodemon does not watch `.env`, so type `rs` or restart.
+- `ECONNREFUSED 127.0.0.1:8000` in the frontend: this server is not up yet, or it crashed. Check this terminal.
+- `column ... does not exist`: a migration has not run. Restart the server.
 
-The search skips groups the seeker is already a member of, and groups that are not `OPEN`.
+## Bounded discovery responses
 
-Near misses: groups in the same city that fail exactly one rule. Each near miss has a suggestion. For example, `BUDGET` suggests a budget range that would pass, and `SHARED_INTERESTS` suggests interests the owner has. Near misses use the same ranking.
+Group search applies matching rules and shared-interest/gender filters before ranking and limiting responses to 50 matches and 50 near misses. Responses include totalMatches, totalNearMisses and limits; the frontend pages matches eight at a time. Home city is recorded but does not affect compatibility.
 
-Join requests are checked again on the server. `POST /groups/:id/requests` takes the `searchId` from a search and re-runs all 6 rules. It fails with `422 RULE_NOT_MET` if any rule fails. Approval runs in a transaction with a row lock on the group, so two approvals at once cannot overfill it.
-
-## Bounded discovery results
-
-`POST /api/matches/search` first applies all six matching rules and any shared-tag
-or gender-mix result filters. It sorts deterministically, then returns at most
-50 matches and 50 near misses. The response includes `totalMatches`,
-`totalNearMisses` and `limits`, so the UI can identify a truncated selection.
-`totalBeforeFilters` retains its existing meaning. Configure these caps in
-`src/config/searchLimits.ts`. The frontend pages the returned matches in groups
-of eight. Input interests may contain one tag; an actual match still needs two
-shared interests. Home city is saved as context and is not a matching rule.
-
-## Cost split
-
-`src/utils/costCalculator.ts`:
-
-- `rooms = ceil(members / max_adults)`
-- A room is available only if `rooms_left >= rooms` on every night of the stay. A night with no availability record counts as 0.
-- `total = price_per_night × rooms × nights`
-- `per member = total / members`, rounded to 2 decimals
-
-Worked example: group G-01 (Kyoto, 2027-04-10 to 2027-04-15, 5 nights) with 2 members. Gion Corner Hotel, Twin Room (`RM-KYO-001-A`), ₹4,760 per night, max 2 adults:
-
-- rooms = ceil(2 / 2) = 1
-- total = 4,760 × 1 × 5 = ₹23,800
-- per member = 23,800 / 2 = ₹11,900
-
-The hotel search uses the current member count by default. With `?preview=full` it uses the group's `maxSize`, to preview the cost when the group is full.
-
-## Endpoints
-
-All paths are under `/api`. "User" means a valid `X-User-Id` header is required.
-
-| Method | Path | Who can call | Purpose |
-| --- | --- | --- | --- |
-| GET | `/meta` | Anyone | Cities, interests, home cities, genders, date window, group size, rule numbers |
-| POST | `/travellers` | Anyone | Sign up (M1). Returns the new traveller id. |
-| GET | `/travellers` | Anyone | List travellers |
-| GET | `/travellers/:id` | Basic profile public; groups permission-controlled | Interests, home city and age. `canViewGroups` and the group array follow the current privacy policy; see `FRIENDS.md`. |
-| GET | `/me` | User | The current traveller |
-| POST | `/groups` | User | Create a group post (M2). The caller becomes owner and first member. |
-| GET | `/groups/mine` | User | Groups I own or belong to, with my role and the pending request count for owners |
-| GET | `/groups/:id` | Anyone (user optional) | Group details, city timezone, owner, members, seats left, my request status if a user is sent, and the booking with its cost split once booked |
-| POST | `/matches/search` | User | Search (M3), returns ranked matches and near misses (M4), and a `searchId`. Each result has `genderComposition`. Optional `filters` (G1): `sharedInterests`, `minSharedInterests`, `genderMix` (`ALL_FEMALE\|ALL_MALE\|MIXED`); response echoes `filters` and adds `totalBeforeFilters` |
-| POST | `/groups/:id/requests` | User | Request to join with `{ searchId }` (M5) |
-| GET | `/groups/:id/requests` | Group owner | List requests, `?status=PENDING\|APPROVED\|REJECTED\|ALL` (default `PENDING`), with the rule results |
-| PATCH | `/requests/:requestId` | Group owner | `{ action: "APPROVE" \| "REJECT" }` |
-| GET | `/requests/mine` | User | My join requests with their groups |
-| GET | `/groups/:id/hotels` | Group member | Hotel room options for the group's city and dates, with cost split (M6). Query: `sort=price\|rating\|stars`, `minStars`, `page`, `limit`, `preview=full` |
-| GET | `/groups/:id/saved` | Group member | Saved options with who saved each, and alignment ("2/2 members") |
-| POST | `/groups/:id/saved` | Group member | Save an option `{ roomId }` |
-| DELETE | `/groups/:id/saved/:roomId` | Group member | Remove my saved option |
-| POST | `/groups/:id/booking` | Group member | Finalize one booking `{ roomId }`. The group becomes `BOOKED`. |
-| GET | `/groups/:id/booking` | Group member | The group's booking and per-member cost |
-| GET | `/groups/:id/messages` | Group member | Group chat (S1), oldest first, with author `{ id, name }`. Query: `after` (ISO timestamp, for polling), `limit` (1-100, default 50). Without `after`, the latest `limit` messages. |
-| POST | `/groups/:id/messages` | Group member | Post a chat message `{ body }` (1-1000 characters). Also allowed after booking. |
-
-Outside `/api`: `GET /health`, `GET /api-docs`, `GET /api-docs.json`, and hotel photos at `GET /images/hotels/<file>.jpg` (the `image` field of a hotel option; credits in `/images/ATTRIBUTIONS.md`).
-
-## Demo flow (curl)
-
-Run `pnpm db:reset` first. Sarah (`T-001`) owns group `G-01` (Kyoto, 2027-04-10 to 2027-04-15, ₹60,000, max 3). Priya (`T-002`) is the seeker.
-
-```bash
-API=http://localhost:8000/api
-
-# 1. Priya searches Kyoto. G-01 is in "matches" with all 6 rules passed.
-curl -s -X POST $API/matches/search \
-  -H 'X-User-Id: T-002' -H 'Content-Type: application/json' \
-  -d '{"homeCity":"Mumbai","city":"Kyoto","checkIn":"2027-04-09","checkOut":"2027-04-16",
-       "budgetInr":62000,"interests":["TEMPLES","STREET_FOOD","ADVENTURE"],
-       "genderPreference":"SAME_GENDER"}'
-# copy data.searchId (S-...)
-
-# 2. Priya requests to join G-01.
-curl -s -X POST $API/groups/G-01/requests \
-  -H 'X-User-Id: T-002' -H 'Content-Type: application/json' \
-  -d '{"searchId":"S-xxxxxxxxxxxx"}'
-# copy data.id (R-...)
-
-# 3. Sarah lists pending requests and approves.
-curl -s $API/groups/G-01/requests -H 'X-User-Id: T-001'
-curl -s -X PATCH $API/requests/R-xxxxxxxxxxxx \
-  -H 'X-User-Id: T-001' -H 'Content-Type: application/json' \
-  -d '{"action":"APPROVE"}'
-
-# 4. Common Group Page: hotel options for 2 members, cheapest first.
-curl -s "$API/groups/G-01/hotels?sort=price" -H 'X-User-Id: T-002'
-
-# 5. Both members save Gion Corner Twin Room, then check alignment.
-curl -s -X POST $API/groups/G-01/saved -H 'X-User-Id: T-002' \
-  -H 'Content-Type: application/json' -d '{"roomId":"RM-KYO-001-A"}'
-curl -s -X POST $API/groups/G-01/saved -H 'X-User-Id: T-001' \
-  -H 'Content-Type: application/json' -d '{"roomId":"RM-KYO-001-A"}'
-curl -s $API/groups/G-01/saved -H 'X-User-Id: T-001'
-
-# 6. Book. total 23800, perMemberInr 11900. The group becomes BOOKED.
-curl -s -X POST $API/groups/G-01/booking -H 'X-User-Id: T-001' \
-  -H 'Content-Type: application/json' -d '{"roomId":"RM-KYO-001-A"}'
-```
-
-## What is finished
-
-Backend for all Must Have features:
-
-- M1 Sign up: `POST /travellers`, profiles saved in Postgres, interests checked against the catalog.
-- M2 Group owner: `POST /groups`, with checks for city (one of the 5 cities), dates (inside 2027-04-01 to 2027-04-20) and size (1 to 4).
-- M3 Traveller search: `POST /matches/search`, with the same city and date checks. Each search is saved and gets a `searchId`.
-- M4 See matches: all 6 rules, per-rule reasons, ranking, near misses with suggestions.
-- M5 Accept or decline: join requests, owner list, approve or reject, state saved. Rules are re-checked on request, and approval is overfill-safe.
-- M6 Common Group Page: hotel search with total and per-member cost, save and compare with member alignment, one booking per group, booking cost split.
-
-Also finished:
-
-- G1 (filter results by shared interests and gender composition): `filters` on `POST /matches/search`. Filters only narrow results; they never add a group that fails a rule.
-- G2 (group member profile pages): `GET /travellers/:id` returns profile details. Visibility of the group list is subject to the current privacy policy, described in `FRIENDS.md`; this may be stricter than the unrestricted optional PDF criterion.
-- S1 Chat: members of a group post and read messages on the group page (`/groups/:id/messages`), also after booking.
-- Swagger UI and OpenAPI JSON for every endpoint, with "Authorize" for `X-User-Id`.
-- Unit tests (Vitest) for the pure logic:
-  - `src/utils/__tests__/matchRules.test.ts`
-  - `src/utils/__tests__/ranking.test.ts`
-  - `src/utils/__tests__/costCalculator.test.ts`
-  - `src/utils/__tests__/dateUtils.test.ts`
-  - `src/utils/__tests__/matchFilters.test.ts`
-  - API tests in `src/__tests__/`: `travellers`, `groups`, `matching.seed`, `matching.rules` (every rule boundary with new travellers), `requests`, `planning` (hotels, saving, booking), `extras` (G1, G2, S1). Each file starts from a freshly seeded in-memory database.
-
-## Known limitations
-
-- Demo identity only. The `X-User-Id` header is not authentication: anyone can send any traveller id. Real auth (for example OAuth) would replace `resolveTravellerId` in `src/middleware/auth.ts`. That function is the only place that reads the identity.
-- A rejected seeker cannot request the same group again. One request per seeker per group is stored, and a second request returns `409`.
-- Frontend is maintained separately in `hydro-7/2FA-MATCHER-FE`, including the creator/seeker flow, shortlist/comparison, booking confirmation and group-chat popup.
-- S1 (chat): polling only (`GET /groups/:id/messages?after=`), no WebSocket push. Messages cannot be edited or deleted.
-- The API tests run on PGlite, which has one connection, so parallel approvals and bookings are checked for correct results but not for real lock contention. In Postgres that is handled by `SELECT ... FOR UPDATE` on the group row.
+Normal startup does not require resetting the database. Keep existing demo and user data; reserve db:reset for disposable development databases.
 

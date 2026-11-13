@@ -1,5 +1,5 @@
 {
-  "id": "3241d0bb-c82e-4a61-85ef-e82243f5ace3",
+  "id": "4fdfef5b-3b4f-49fa-b7e0-5c49532ed412",
   "prevId": "01354015-0008-4801-8228-55fd532d8426",
   "version": "7",
   "dialect": "postgresql",
@@ -613,6 +613,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "gender_preference": {
+          "name": "gender_preference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ANY'"
         },
         "status": {
           "name": "status",
@@ -1239,156 +1246,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.friendships": {
-      "name": "friendships",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "traveller_a_id": {
-          "name": "traveller_a_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "traveller_b_id": {
-          "name": "traveller_b_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requester_id": {
-          "name": "requester_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'PENDING'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "friendships_a_idx": {
-          "name": "friendships_a_idx",
-          "columns": [
-            {
-              "expression": "traveller_a_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "friendships_b_idx": {
-          "name": "friendships_b_idx",
-          "columns": [
-            {
-              "expression": "traveller_b_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "friendships_traveller_a_id_travellers_id_fk": {
-          "name": "friendships_traveller_a_id_travellers_id_fk",
-          "tableFrom": "friendships",
-          "tableTo": "travellers",
-          "columnsFrom": [
-            "traveller_a_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "friendships_traveller_b_id_travellers_id_fk": {
-          "name": "friendships_traveller_b_id_travellers_id_fk",
-          "tableFrom": "friendships",
-          "tableTo": "travellers",
-          "columnsFrom": [
-            "traveller_b_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "friendships_requester_id_travellers_id_fk": {
-          "name": "friendships_requester_id_travellers_id_fk",
-          "tableFrom": "friendships",
-          "tableTo": "travellers",
-          "columnsFrom": [
-            "requester_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "friendships_pair_unique": {
-          "name": "friendships_pair_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "traveller_a_id",
-            "traveller_b_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "friendships_ordered_pair": {
-          "name": "friendships_ordered_pair",
-          "value": "\"friendships\".\"traveller_a_id\" < \"friendships\".\"traveller_b_id\""
-        },
-        "friendships_requester_in_pair": {
-          "name": "friendships_requester_in_pair",
-          "value": "\"friendships\".\"requester_id\" IN (\"friendships\".\"traveller_a_id\", \"friendships\".\"traveller_b_id\")"
-        },
-        "friendships_status": {
-          "name": "friendships_status",
-          "value": "\"friendships\".\"status\" IN ('PENDING', 'ACCEPTED')"
-        }
-      },
       "isRLSEnabled": false
     }
   },

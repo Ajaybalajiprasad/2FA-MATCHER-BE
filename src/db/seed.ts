@@ -1,5 +1,5 @@
 // Seeds once, when the DB is empty, so restarts never overwrite app data.
-import { count } from 'drizzle-orm';
+import { and, count, eq, isNull, sql } from 'drizzle-orm';
 import type { Database } from './index';
 import {
   cities,
@@ -14,7 +14,11 @@ import {
   travellers,
 } from './schema';
 import { readDataPack } from './dataPack';
+import { env } from '../config/env';
+import { hashPassword } from '../utils/auth';
 import logger from '../utils/logger';
+
+export const demoEmail = (travellerId: string) => `${travellerId.toLowerCase()}@demo.travel`;
 
 export const isDatabaseSeeded = async (db: Database): Promise<boolean> => {
   const [row] = await db.select({ n: count() }).from(interests);
@@ -82,6 +86,8 @@ export const seedDatabase = async (db: Database): Promise<void> => {
       .insert(roomAvailability)
       .values(pack.availability.map((a) => ({ roomId: a.room_id, date: a.date, roomsLeft: a.rooms_left })));
 
+    // One hash shared by all demo accounts: scrypt per traveller would slow every seed.
+    const demoHash = hashPassword(env.DEMO_PASSWORD);
     await tx.insert(travellers).values(
       pack.travellers.map((t) => ({
         id: t.traveller_id,
@@ -92,6 +98,8 @@ export const seedDatabase = async (db: Database): Promise<void> => {
         homeAirport: t.home_airport,
         genderPreference: t.gender_preference,
         isSeed: true,
+        email: demoEmail(t.traveller_id),
+        passwordHash: demoHash,
       }))
     );
 
@@ -112,6 +120,7 @@ export const seedDatabase = async (db: Database): Promise<void> => {
         maxSize: g.max_size,
         budgetInr: g.budget_inr,
         itinerary: g.itinerary,
+        genderPreference: pack.travellers.find((t) => t.traveller_id === g.owner_id)?.gender_preference ?? 'ANY',
       }))
     );
 
@@ -129,7 +138,18 @@ export const seedDatabase = async (db: Database): Promise<void> => {
 export const seedIfEmpty = async (db: Database): Promise<void> => {
   if (await isDatabaseSeeded(db)) {
     logger.info('Database already seeded, skipping');
+    await backfillDemoLogins(db);
     return;
   }
   await seedDatabase(db);
+};
+
+// Databases seeded before sign-in existed get demo logins for their seeded travellers.
+const backfillDemoLogins = async (db: Database): Promise<void> => {
+  const updated = await db
+    .update(travellers)
+    .set({ email: sql`lower(${travellers.id}) || '@demo.travel'`, passwordHash: hashPassword(env.DEMO_PASSWORD) })
+    .where(and(eq(travellers.isSeed, true), isNull(travellers.passwordHash)))
+    .returning({ id: travellers.id });
+  if (updated.length) logger.info(`Added demo logins for ${updated.length} seeded travellers`);
 };

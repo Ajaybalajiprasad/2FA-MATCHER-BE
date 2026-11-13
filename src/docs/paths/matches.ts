@@ -21,7 +21,7 @@ export const matchPaths = {
       responses: {
         200: ok('searchId, criteria, filters (echo or null), totalBeforeFilters, totalMatches, totalNearMisses, limits { matches: 50, nearMisses: 50 }, and the highest-ranked matches/nearMisses. Filtering and counting happen before the caps; ties use shared nights desc, check-in asc, group id asc.'),
         400: ok('Validation failed, unknown interests, or city/dates outside the data (OUT_OF_DATA_RANGE)'),
-        401: ok('Missing or unknown X-User-Id'),
+        401: ok('Missing or invalid token'),
       },
     },
   },

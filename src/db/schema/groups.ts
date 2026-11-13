@@ -16,6 +16,7 @@ export const groups = pgTable('groups', {
   maxSize: integer('max_size').notNull(), // owner included
   budgetInr: integer('budget_inr').notNull(), // per person
   itinerary: text('itinerary').notNull(),
+  genderPreference: text('gender_preference').notNull().default('ANY'), // ANY | SAME_GENDER, per trip
   status: text('status').notNull().default('OPEN'), // OPEN | BOOKED
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
