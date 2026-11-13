@@ -46,7 +46,9 @@ export class GroupService {
   async getById(id: string, callerId?: string) {
     const group = await groupRepository.findById(id);
     if (!group) throw new AppError('Group not found', 404, ErrorCode.NOT_FOUND);
-    const members = await travellerRepository.findByIds(await groupRepository.findMemberIds(id));
+    const memberIds = await groupRepository.findMemberIds(id);
+    const byId = new Map((await travellerRepository.findByIds(memberIds)).map((t) => [t.id, t]));
+    const members = memberIds.flatMap((memberId) => byId.get(memberId) ?? []);
     const owner = members.find((m) => m.id === group.ownerId) ?? (await travellerRepository.findById(group.ownerId));
     const [requestStatuses, city, booking] = await Promise.all([
       callerId ? groupRepository.requestStatusesForSeeker(callerId, [id]) : undefined,
