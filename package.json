@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Group Travel Matcher backend (Hackathon Problem 3)",
   "type": "module",
-  "packageManager": "pnpm@11.12.0",
+  "packageManager": "pnpm@11.25.0",
   "scripts": {
     "dev": "nodemon",
     "start": "tsx src/server.ts",

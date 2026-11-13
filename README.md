@@ -2,11 +2,11 @@
 
 Express, TypeScript and PostgreSQL API for matching travellers, approving members, booking stays, friends and chat.
 
-Needs Node.js 24 LTS, Git and an empty PostgreSQL database (local or Neon). Start this repo before the frontend.
+Needs Node.js 24 LTS, Git and an empty PostgreSQL database (local or Neon). Start this repo before the frontend. For both apps in one clone, use the [combined repo](https://github.com/hydro-7/2FA-MATCHER-SUBMISSION).
 ```sh
 git clone https://github.com/Ajaybalajiprasad/2FA-MATCHER-BE.git
 cd 2FA-MATCHER-BE
-npm install -g pnpm@11.12.0
+npm install -g pnpm@11.25.0
 pnpm install --frozen-lockfile
 node -e "require('node:fs').copyFileSync('.env.example', '.env')"
 ```
