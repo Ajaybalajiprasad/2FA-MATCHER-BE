@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { anon, as, resetDb } from './helpers';
+import { anon, as, createGroup, join, resetDb, signUp } from './helpers';
 
 beforeEach(resetDb);
 const a = as('T-001');
@@ -18,6 +18,18 @@ describe('Friends API', () => {
     expect(result.body.data).toMatchObject({ name: 'Sarah Thomas', canViewGroups: false, groups: [] });
     expect(result.headers['cache-control']).toBe('private, no-store');
     expect(JSON.stringify(result.body.data)).not.toContain('G-01');
+  });
+
+  it('shows groups to a groupmate who is not a friend, but not to a stranger', async () => {
+    const owner = await signUp({ interests: ['TEMPLES', 'STREET_FOOD'] });
+    const mate = await signUp({ interests: ['TEMPLES', 'STREET_FOOD'] });
+    const stranger = await signUp();
+    const group = await createGroup(owner);
+    await join(owner, mate, group);
+    const seen = (await as(mate).get(`/api/travellers/${owner}`)).body.data;
+    expect(seen.canViewGroups).toBe(true);
+    expect(seen.groups.map((g: { id: string }) => g.id)).toContain(group);
+    expect((await as(stranger).get(`/api/travellers/${owner}`)).body.data).toMatchObject({ canViewGroups: false, groups: [] });
   });
 
   it('shows your own groups without requiring a self friendship', async () => {

@@ -41,6 +41,16 @@ export class GroupRepository {
       .then((rows) => rows.map((r) => r.group));
   }
 
+  async shareAGroup(a: string, b: string): Promise<boolean> {
+    const theirs = groupMembers;
+    const [row] = await this.conn
+      .select({ groupId: groupMembers.groupId })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.travellerId, a), inArray(groupMembers.groupId, this.conn.select({ id: theirs.groupId }).from(theirs).where(eq(theirs.travellerId, b)))))
+      .limit(1);
+    return Boolean(row);
+  }
+
   async findMemberIds(groupId: string): Promise<string[]> {
     const rows = await this.conn
       .select({ travellerId: groupMembers.travellerId })

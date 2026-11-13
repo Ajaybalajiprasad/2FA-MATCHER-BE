@@ -80,8 +80,11 @@ export class TravellerService {
   async getProfile(id: string, viewerId?: string) {
     const traveller = await this.getById(id);
     const friendship = viewerId && viewerId !== id ? await friendRepository.findPair(viewerId, id) : undefined;
-    const canViewGroups = viewerId === id || friendship?.status === 'ACCEPTED';
-    // Basic profiles remain discoverable. Never fetch or return group details to non-friends.
+    // Friends and anyone travelling in a group with this person see their groups. Strangers never do.
+    const canViewGroups =
+      viewerId === id ||
+      friendship?.status === 'ACCEPTED' ||
+      (viewerId !== undefined && (await groupRepository.shareAGroup(viewerId, id)));
     if (!canViewGroups) return { ...traveller, canViewGroups: false, groups: [] };
     const groups = await groupRepository.findByMember(id);
     const counts = await groupRepository.memberCounts(groups.map((g) => g.id));
