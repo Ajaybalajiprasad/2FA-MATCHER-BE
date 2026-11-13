@@ -3,11 +3,14 @@ import { db } from '../db';
 import { AppError } from '../middleware/errorHandler';
 import { catalogRepository } from '../repositories/CatalogRepository';
 import { type Group, GroupRepository, groupRepository } from '../repositories/GroupRepository';
+import { planningRepository } from '../repositories/PlanningRepository';
 import { travellerRepository } from '../repositories/TravellerRepository';
 import { ErrorCode } from '../types/errors';
 import type { Traveller } from '../types/traveller.types';
+import { perMember } from '../utils/costCalculator';
 import { isStayInDataWindow, isValidIsoDate } from '../utils/dateUtils';
 import { newId } from '../utils/id';
+import { seatsLeft } from '../utils/matchRules';
 import type { CreateGroupInput } from '../validators/groupValidators';
 
 export class GroupService {
@@ -45,14 +48,18 @@ export class GroupService {
     if (!group) throw new AppError('Group not found', 404, ErrorCode.NOT_FOUND);
     const members = await travellerRepository.findByIds(await groupRepository.findMemberIds(id));
     const owner = members.find((m) => m.id === group.ownerId) ?? (await travellerRepository.findById(group.ownerId));
-    const myRequestStatus = callerId
-      ? ((await groupRepository.requestStatusesForSeeker(callerId, [id])).get(id) ?? null)
-      : null;
+    const [requestStatuses, city, booking] = await Promise.all([
+      callerId ? groupRepository.requestStatusesForSeeker(callerId, [id]) : undefined,
+      catalogRepository.findCity(group.city),
+      this.bookingSummary(group),
+    ]);
     return {
       ...this.summary(group, members.length),
+      timezone: city?.timezone ?? null,
       owner: owner ? { id: owner.id, name: owner.name, gender: owner.gender } : null,
       members,
-      myRequestStatus,
+      myRequestStatus: requestStatuses?.get(id) ?? null,
+      booking,
     };
   }
 
@@ -84,7 +91,22 @@ export class GroupService {
   }
 
   private summary(group: Group, memberCount: number) {
-    return { ...group, memberCount, seatsLeft: Math.max(0, group.maxSize - memberCount) };
+    return { ...group, memberCount, seatsLeft: seatsLeft(memberCount, group.maxSize) };
+  }
+
+  private async bookingSummary(group: Group) {
+    if (group.status !== 'BOOKED') return null;
+    const booking = await planningRepository.findBookingByGroup(group.id);
+    if (!booking) return null;
+    const [found] = await planningRepository.findRoomsWithHotel([booking.roomId]);
+    return {
+      id: booking.id,
+      hotelName: found?.hotel.name ?? null,
+      roomName: found?.room.name ?? null,
+      totalInr: booking.totalInr,
+      members: booking.members,
+      perMemberInr: perMember(booking.totalInr, booking.members),
+    };
   }
 }
 
