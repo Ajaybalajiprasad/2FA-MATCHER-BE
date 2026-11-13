@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema } from 'zod';
 
-// ZodError is turned into a 400 by errorHandler, so these stay one line each.
+// ZodError is mapped to 400 by errorHandler.
 export const validateBody = (schema: ZodSchema) => (req: Request, _res: Response, next: NextFunction) => {
   req.body = schema.parse(req.body);
   next();

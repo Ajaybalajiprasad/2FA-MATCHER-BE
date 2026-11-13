@@ -1,25 +1,18 @@
-/**
- * The 6 group matching rules (problem statement section 5), as a rule registry.
- * Pure functions: no DB, no I/O. A group matches only if every rule passes.
- * To change a threshold, edit config/businessRules.ts; to add a rule, add one entry to MATCH_RULES.
- */
 import { MATCH_RULES_CONFIG, type Gender, type GenderPreference } from '../config/businessRules';
 import type { MatchContext, MatchEvaluation, RuleId, RuleResult } from '../types/match.types';
 import { sharedNights } from './dateUtils';
 
 const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
-/** Interest IDs present in both lists (order of `a` kept). */
 export const sharedInterests = (a: string[], b: string[]): string[] => {
   const other = new Set(b);
   return [...new Set(a)].filter((i) => other.has(i));
 };
 
-/** Budget rule: |a − b| ≤ MAX% of the lower budget. Integer math, so exactly 40% passes. */
+// Integer math so the exact 40% boundary passes.
 export const isBudgetCompatible = (a: number, b: number): boolean =>
   Math.abs(a - b) * 100 <= MATCH_RULES_CONFIG.MAX_BUDGET_DIFF_PERCENT * Math.min(a, b);
 
-/** Does a person with `preference` and `ownGender` accept travelling with `otherGender`? */
 export const genderAllows = (preference: GenderPreference, ownGender: Gender, otherGender: Gender): boolean =>
   preference === 'ANY' || ownGender === otherGender;
 

@@ -1,4 +1,4 @@
-// shortcut: console-based logger, swap for winston if we need log files.
+// shortcut: console logger, swap for winston if we need log files.
 const stamp = () => new Date().toISOString();
 
 const logger = {

@@ -5,7 +5,6 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().int().positive().default(8000),
-  // Any PostgreSQL URL (local, Neon, ...). The only thing that changes between databases.
   DATABASE_URL: z
     .string({ required_error: 'DATABASE_URL is missing: copy .env.example to .env and set it' })
     .min(1),

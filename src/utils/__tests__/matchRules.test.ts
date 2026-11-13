@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { evaluateMatch, isBudgetCompatible } from '../matchRules';
 import type { MatchContext } from '../../types/match.types';
 
-// Worked example from DATA_DICTIONARY §2: Priya searches, G-01 is Sarah's group.
+// Worked example from DATA_DICTIONARY.md section 2.
 const priyaSearchesSarah = (): MatchContext => ({
   seeker: {
     city: 'Kyoto',
@@ -78,11 +78,9 @@ describe('matchRules', () => {
 
   it('gender: checks both ways', () => {
     const ctx = priyaSearchesSarah();
-    // Owner ANY, seeker female-only, owner male -> seeker side blocks.
     ctx.owner.gender = 'MALE';
     ctx.owner.genderPreference = 'ANY';
     expect(failed(ctx)).toEqual(['GENDER']);
-    // Seeker ANY too -> both allow.
     ctx.seeker.genderPreference = 'ANY';
     expect(failed(ctx)).toEqual([]);
   });

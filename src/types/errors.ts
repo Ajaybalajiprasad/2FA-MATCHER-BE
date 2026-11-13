@@ -1,4 +1,3 @@
-/** Single source of truth for error codes returned by the API. */
 export enum ErrorCode {
   VALIDATION_FAILED = 'VALIDATION_FAILED',
   OUT_OF_DATA_RANGE = 'OUT_OF_DATA_RANGE',

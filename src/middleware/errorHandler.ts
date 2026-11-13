@@ -28,7 +28,6 @@ export const notFoundHandler = (req: Request, res: Response) => {
     .json(createErrorResponse(`Route ${req.method} ${req.originalUrl} not found`, { code: ErrorCode.NOT_FOUND }));
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
     res.status(err.statusCode).json(createErrorResponse(err.message, { code: err.code, details: err.details }));
