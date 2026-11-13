@@ -8,7 +8,7 @@ import { ErrorCode } from '../types/errors';
 import type { MatchContext, SeekerCriteria } from '../types/match.types';
 import type { Traveller } from '../types/traveller.types';
 import { newId } from '../utils/id';
-import { evaluateMatch } from '../utils/matchRules';
+import { evaluateMatch, hasSeatFor, seatsLeft } from '../utils/matchRules';
 import type { DecideRequestInput, ListRequestsQuery } from '../validators/requestValidators';
 
 const criteriaOf = (search: Search): SeekerCriteria => ({
@@ -106,11 +106,10 @@ export class RequestService {
       const requests = new JoinRequestRepository(tx);
       if (action === 'REJECT') return requests.decide(requestId, 'REJECTED');
       const groups = new GroupRepository(tx);
-      // Row lock serialises concurrent approvals so the group cannot overfill.
       const locked = await groups.findByIdForUpdate(group.id);
       if (locked?.status !== 'OPEN') throw new AppError('Group is not open', 409, ErrorCode.CONFLICT);
       const memberCount = (await groups.memberCounts([group.id])).get(group.id) ?? 0;
-      if (memberCount + 1 > locked.maxSize) throw new AppError('Group is full', 409, ErrorCode.CONFLICT);
+      if (!hasSeatFor(memberCount, locked.maxSize)) throw new AppError('Group is full', 409, ErrorCode.CONFLICT);
       const approved = await requests.decide(requestId, 'APPROVED');
       if (approved) await groups.addMember(group.id, request.seekerId);
       return approved;
@@ -118,7 +117,7 @@ export class RequestService {
     if (!updated) throw alreadyDecided();
 
     const memberCount = (await groupRepository.memberCounts([group.id])).get(group.id) ?? 0;
-    return { ...updated, memberCount, seatsLeft: Math.max(0, group.maxSize - memberCount) };
+    return { ...updated, memberCount, seatsLeft: seatsLeft(memberCount, group.maxSize) };
   }
 
   async listMine(seekerId: string) {

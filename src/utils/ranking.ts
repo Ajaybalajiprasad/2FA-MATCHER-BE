@@ -1,7 +1,7 @@
 import { MATCH_RULES_CONFIG, RANK_WEIGHTS } from '../config/businessRules';
 import type { MatchContext } from '../types/match.types';
 import { nights, sharedNights } from './dateUtils';
-import { sharedInterests } from './matchRules';
+import { seatsLeft, sharedInterests } from './matchRules';
 
 export interface RankScore {
   score: number;
@@ -18,13 +18,12 @@ export const rankScore = ({ seeker, group, owner }: MatchContext): RankScore => 
   const seekerNights = nights(seeker.checkIn, seeker.checkOut);
   const allowedDiff = (MATCH_RULES_CONFIG.MAX_BUDGET_DIFF_PERCENT / 100) * Math.min(seeker.budgetInr, group.budgetInr);
   const budgetDiff = Math.abs(seeker.budgetInr - group.budgetInr);
-  const seatsLeft = group.maxSize - group.memberCount;
 
   const raw =
     RANK_WEIGHTS.INTERESTS * (seekerInterestCount ? shared.length / seekerInterestCount : 0) +
     RANK_WEIGHTS.DATES * (seekerNights ? clamp01(nightsShared / seekerNights) : 0) +
     RANK_WEIGHTS.BUDGET * (allowedDiff ? clamp01(1 - budgetDiff / allowedDiff) : 0) +
-    RANK_WEIGHTS.OPEN_SEATS * clamp01(seatsLeft / group.maxSize);
+    RANK_WEIGHTS.OPEN_SEATS * clamp01(seatsLeft(group.memberCount, group.maxSize) / group.maxSize);
 
   return { score: Math.round(raw * 10) / 10, sharedNights: nightsShared, sharedInterests: shared };
 };

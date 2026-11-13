@@ -5,7 +5,7 @@ import { HotelRepository } from '../repositories/HotelRepository';
 import { PlanningRepository, planningRepository } from '../repositories/PlanningRepository';
 import { travellerRepository } from '../repositories/TravellerRepository';
 import { ErrorCode } from '../types/errors';
-import { quoteRoom } from '../utils/costCalculator';
+import { perMember, quoteRoom } from '../utils/costCalculator';
 import { nightDates } from '../utils/dateUtils';
 import { newId } from '../utils/id';
 import type { GroupHotelsQuery } from '../validators/planningValidators';
@@ -15,8 +15,6 @@ import { hotelService } from './hotelService';
 const assertOpen = (status: string) => {
   if (status !== 'OPEN') throw new AppError('Group already booked', 409, ErrorCode.CONFLICT);
 };
-
-const splitPerMember = (totalInr: number, members: number) => Math.round((totalInr / members) * 100) / 100;
 
 export class PlanningService {
   async searchHotels(groupId: string, travellerId: string, { preview, ...query }: GroupHotelsQuery) {
@@ -109,8 +107,9 @@ export class PlanningService {
     const { group } = await groupService.getForMember(groupId, travellerId);
     await db.transaction(async (tx) => {
       const repo = new PlanningRepository(tx);
-      assertOpen((await repo.lockGroupStatus(groupId)) ?? 'OPEN');
-      const members = (await new GroupRepository(tx).findMemberIds(groupId)).length;
+      const groups = new GroupRepository(tx);
+      assertOpen((await groups.findByIdForUpdate(groupId))?.status ?? 'OPEN');
+      const members = (await groups.findMemberIds(groupId)).length;
       const { hotel, quote, nights } = await this.quoteAvailable(tx, group, roomId, members);
       const inserted = await repo.insertBooking({
         id: newId('BK'),
@@ -150,7 +149,7 @@ export class PlanningService {
       nights: booking.nights,
       members: booking.members,
       totalInr: booking.totalInr,
-      perMemberInr: splitPerMember(booking.totalInr, booking.members),
+      perMemberInr: perMember(booking.totalInr, booking.members),
       bookedBy: bookedBy ? { id: bookedBy.id, name: bookedBy.name } : null,
       createdAt: booking.createdAt,
     };

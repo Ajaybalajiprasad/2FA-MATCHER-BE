@@ -18,16 +18,6 @@ export class PlanningRepository {
       .orderBy(asc(rooms.id));
   }
 
-  // Row lock serialises concurrent "Finalize" clicks on the same group.
-  async lockGroupStatus(groupId: string): Promise<string | undefined> {
-    const [row] = await this.conn
-      .select({ status: groups.status })
-      .from(groups)
-      .where(eq(groups.id, groupId))
-      .for('update');
-    return row?.status;
-  }
-
   async insertSaved(option: NewSavedOption): Promise<boolean> {
     const rows = await this.conn.insert(savedOptions).values(option).onConflictDoNothing().returning({ id: savedOptions.id });
     return rows.length > 0;

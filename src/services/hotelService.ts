@@ -11,7 +11,6 @@ export interface HotelOptionsQuery {
   members: number;
   sort?: HotelSort;
   minStars?: number;
-  onlyAvailable?: boolean;
   page?: number;
   limit?: number;
 }
@@ -64,7 +63,6 @@ export class HotelService {
     members,
     sort = 'price',
     minStars,
-    onlyAvailable = true,
     page = 1,
     limit = 20,
   }: HotelOptionsQuery): Promise<HotelOptionsResult> {
@@ -107,7 +105,7 @@ export class HotelService {
           ...quote,
         };
       })
-      .filter((o) => !onlyAvailable || o.available)
+      .filter((o) => o.available)
       .sort((a, b) => PRIMARY_ORDER[sort](a, b) || byIds(a, b));
 
     return {

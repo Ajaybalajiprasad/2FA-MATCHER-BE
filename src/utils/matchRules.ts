@@ -13,6 +13,10 @@ export const sharedInterests = (a: string[], b: string[]): string[] => {
 export const isBudgetCompatible = (a: number, b: number): boolean =>
   Math.abs(a - b) * 100 <= MATCH_RULES_CONFIG.MAX_BUDGET_DIFF_PERCENT * Math.min(a, b);
 
+export const seatsLeft = (memberCount: number, maxSize: number): number => Math.max(0, maxSize - memberCount);
+
+export const hasSeatFor = (memberCount: number, maxSize: number): boolean => memberCount + 1 <= maxSize;
+
 export const genderAllows = (preference: GenderPreference, ownGender: Gender, otherGender: Gender): boolean =>
   preference === 'ANY' || ownGender === otherGender;
 
@@ -87,11 +91,11 @@ export const MATCH_RULES: MatchRule[] = [
     id: 'GROUP_SIZE',
     label: 'Group has space',
     check: ({ group }) => {
-      const pass = group.memberCount + 1 <= group.maxSize;
+      const pass = hasSeatFor(group.memberCount, group.maxSize);
       return {
         pass,
         detail: pass
-          ? `${group.memberCount}/${group.maxSize} members, ${group.maxSize - group.memberCount} place(s) left`
+          ? `${group.memberCount}/${group.maxSize} members, ${seatsLeft(group.memberCount, group.maxSize)} place(s) left`
           : `Group is full (${group.memberCount}/${group.maxSize})`,
       };
     },

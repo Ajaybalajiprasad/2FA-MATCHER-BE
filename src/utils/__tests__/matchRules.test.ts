@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateMatch, isBudgetCompatible } from '../matchRules';
+import { evaluateMatch, hasSeatFor, isBudgetCompatible, seatsLeft } from '../matchRules';
 import type { MatchContext } from '../../types/match.types';
 
 // Worked example from DATA_DICTIONARY.md section 2.
@@ -98,5 +98,14 @@ describe('matchRules', () => {
     ctx.seeker.city = 'Dubai';
     ctx.seeker.budgetInr = 200000;
     expect(failed(ctx)).toEqual(['SAME_CITY', 'BUDGET']);
+  });
+});
+
+describe('group seats', () => {
+  it('has a seat until the group reaches max size', () => {
+    expect(hasSeatFor(2, 3)).toBe(true);
+    expect(hasSeatFor(3, 3)).toBe(false);
+    expect(seatsLeft(1, 3)).toBe(2);
+    expect(seatsLeft(4, 3)).toBe(0);
   });
 });

@@ -5,7 +5,7 @@ import { travellerRepository } from '../repositories/TravellerRepository';
 import type { MatchContext, RuleId, SeekerCriteria } from '../types/match.types';
 import type { Traveller } from '../types/traveller.types';
 import { newId } from '../utils/id';
-import { evaluateMatch } from '../utils/matchRules';
+import { evaluateMatch, seatsLeft } from '../utils/matchRules';
 import { compareRanked, rankScore } from '../utils/ranking';
 import type { MatchSearchInput } from '../validators/matchValidators';
 import { groupService } from './groupService';
@@ -81,7 +81,7 @@ export class MatchService {
         checkOut: g.checkOut,
         memberCount,
         maxSize: g.maxSize,
-        seatsLeft: Math.max(0, g.maxSize - memberCount),
+        seatsLeft: seatsLeft(memberCount, g.maxSize),
         budgetInr: g.budgetInr,
         ownerId: owner.id,
         ownerName: owner.name,

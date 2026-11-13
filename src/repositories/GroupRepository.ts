@@ -21,6 +21,7 @@ export class GroupRepository {
     return row;
   }
 
+  // Row lock serialises concurrent approvals and bookings on one group.
   async findByIdForUpdate(id: string): Promise<Group | undefined> {
     const [row] = await this.conn.select().from(groups).where(eq(groups.id, id)).limit(1).for('update');
     return row;
