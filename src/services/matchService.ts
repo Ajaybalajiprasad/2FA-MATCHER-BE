@@ -1,4 +1,5 @@
 import { MATCH_RULES_CONFIG } from '../config/businessRules';
+import { SEARCH_LIMITS } from '../config/searchLimits';
 import { groupRepository } from '../repositories/GroupRepository';
 import { searchRepository } from '../repositories/SearchRepository';
 import { travellerRepository } from '../repositories/TravellerRepository';
@@ -117,8 +118,11 @@ export class MatchService {
       criteria: { ...criteria, homeCity: input.homeCity ?? null },
       filters: input.filters ?? null,
       totalBeforeFilters: { matches: allMatches.length, nearMisses: allNearMisses.length },
-      matches: matches.sort(compareRanked),
-      nearMisses: nearMisses.sort(compareRanked),
+      totalMatches: matches.length,
+      totalNearMisses: nearMisses.length,
+      limits: SEARCH_LIMITS,
+      matches: matches.sort(compareRanked).slice(0, SEARCH_LIMITS.matches),
+      nearMisses: nearMisses.sort(compareRanked).slice(0, SEARCH_LIMITS.nearMisses),
     };
   }
 }

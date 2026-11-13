@@ -1,16 +1,25 @@
 # Group Travel Matcher (backend)
 
-Backend for Hackathon Problem 3, Group Travel Matcher. A traveller signs up, creates a group post, or searches for a group to join. The API returns matching groups that pass all 6 matching rules, ranked by fit, with a reason for each rule. It also returns "near misses" with a suggestion. The seeker requests to join, and the group owner approves or rejects. Members then use the Common Group Page endpoints to search hotels for the group's city and dates, see the total and per-member cost, save options, and finalize one booking. Stack: Node 24, TypeScript, Express, Drizzle ORM, PostgreSQL, Zod, Swagger UI, Vitest.
+Backend for Hackathon Problem 3, Group Travel Matcher. A traveller signs up, creates a group post, or searches for a group to join. The API returns matching groups that pass all 6 matching rules, ranked by fit, with a reason for each rule. It also returns "near misses" with a suggestion. The seeker requests to join, and the group owner approves or rejects. Members then use the Common Group Page endpoints to search hotels for the group's city and dates, see the total and per-member cost, save options, and finalize one booking. Stack: Node.js, TypeScript, Express, Drizzle ORM, PostgreSQL, Zod, Swagger UI, Vitest.
 
 ## Quick start
 
-Prerequisites: Node 24, pnpm, and any PostgreSQL database (local or hosted, for example Neon).
+Prerequisites: Node.js 22+, pnpm, and PostgreSQL (local or hosted, for example Neon).
 
 ```bash
 cp .env.example .env      # then set DATABASE_URL
 pnpm install
 pnpm dev                  # applies migrations, seeds the data pack on first start, starts on :8000
 ```
+
+On Windows, use `Copy-Item .env.example .env` for the first command. Configure
+`DATABASE_URL` privately. For Neon on networks that interrupt PostgreSQL traffic
+on port 5432, set `DATABASE_TRANSPORT=websocket` to use its transaction-capable
+port-443 driver. Leave `DATABASE_TRANSPORT=tcp` for ordinary/local PostgreSQL.
+
+After setup, the full app takes two startup commands in two terminals:
+`pnpm dev` here and `npm run dev` in the frontend repository. The frontend uses
+`http://localhost:5173` and proxies API calls to `http://localhost:8000` by default.
 
 `DATABASE_URL` examples:
 
@@ -21,10 +30,10 @@ Other commands:
 
 | Command | What it does |
 | --- | --- |
-| `pnpm db:reset` | Drops all app tables, re-applies migrations and re-seeds. Run it before a demo. |
+| `pnpm db:reset` | Recreates app tables and reseeds a disposable development database. Not needed for normal startup or demo forms. |
 | `pnpm start` | Starts the server without file watching. |
 | `pnpm seed` | Applies migrations and seeds only if the DB is empty. |
-| `pnpm test` | Runs all 168 tests: unit tests for the pure logic and API tests against an in-memory Postgres (PGlite), so your real database is never touched. |
+| `pnpm test` | Runs pure-logic and API tests against isolated in-memory PostgreSQL (PGlite), including matching boundaries, pricing, approvals, friendships/privacy and bounded result windows. Your configured database is not reset. |
 | `pnpm typecheck` | Runs `tsc --noEmit`. |
 
 URLs:
@@ -79,7 +88,7 @@ Data flow:
 
 Database portability:
 
-- The `node-postgres` driver works with any PostgreSQL. To switch databases, change only `DATABASE_URL`.
+- The default `node-postgres` driver works with PostgreSQL. To switch databases, change `DATABASE_URL`. Neon also supports the optional `DATABASE_TRANSPORT=websocket` driver.
 - All rule logic (matching, ranking, cost split, dates) is plain TypeScript, not SQL, so it does not depend on database features.
 - Repository queries use explicit `ORDER BY`, so result order is deterministic.
 
@@ -117,6 +126,17 @@ Near misses: groups in the same city that fail exactly one rule. Each near miss 
 
 Join requests are checked again on the server. `POST /groups/:id/requests` takes the `searchId` from a search and re-runs all 6 rules. It fails with `422 RULE_NOT_MET` if any rule fails. Approval runs in a transaction with a row lock on the group, so two approvals at once cannot overfill it.
 
+## Bounded discovery results
+
+`POST /api/matches/search` first applies all six matching rules and any shared-tag
+or gender-mix result filters. It sorts deterministically, then returns at most
+50 matches and 50 near misses. The response includes `totalMatches`,
+`totalNearMisses` and `limits`, so the UI can identify a truncated selection.
+`totalBeforeFilters` retains its existing meaning. Configure these caps in
+`src/config/searchLimits.ts`. The frontend pages the returned matches in groups
+of eight. Input interests may contain one tag; an actual match still needs two
+shared interests. Home city is saved as context and is not a matching rule.
+
 ## Cost split
 
 `src/utils/costCalculator.ts`:
@@ -143,7 +163,7 @@ All paths are under `/api`. "User" means a valid `X-User-Id` header is required.
 | GET | `/meta` | Anyone | Cities, interests, home cities, genders, date window, group size, rule numbers |
 | POST | `/travellers` | Anyone | Sign up (M1). Returns the new traveller id. |
 | GET | `/travellers` | Anyone | List travellers |
-| GET | `/travellers/:id` | Anyone | Traveller profile page (G2): interests, home city, age, and `groups` (id, name, city, dates, status, `role` OWNER/MEMBER, memberCount, maxSize) |
+| GET | `/travellers/:id` | Basic profile public; groups permission-controlled | Interests, home city and age. `canViewGroups` and the group array follow the current privacy policy; see `FRIENDS.md`. |
 | GET | `/me` | User | The current traveller |
 | POST | `/groups` | User | Create a group post (M2). The caller becomes owner and first member. |
 | GET | `/groups/mine` | User | Groups I own or belong to, with my role and the pending request count for owners |
@@ -220,7 +240,7 @@ Backend for all Must Have features:
 Also finished:
 
 - G1 (filter results by shared interests and gender composition): `filters` on `POST /matches/search`. Filters only narrow results; they never add a group that fails a rule.
-- G2 (group member profile pages): `GET /travellers/:id` returns the profile with the groups the traveller is in.
+- G2 (group member profile pages): `GET /travellers/:id` returns profile details. Visibility of the group list is subject to the current privacy policy, described in `FRIENDS.md`; this may be stricter than the unrestricted optional PDF criterion.
 - S1 Chat: members of a group post and read messages on the group page (`/groups/:id/messages`), also after booking.
 - Swagger UI and OpenAPI JSON for every endpoint, with "Authorize" for `X-User-Id`.
 - Unit tests (Vitest) for the pure logic:
@@ -235,6 +255,7 @@ Also finished:
 
 - Demo identity only. The `X-User-Id` header is not authentication: anyone can send any traveller id. Real auth (for example OAuth) would replace `resolveTravellerId` in `src/middleware/auth.ts`. That function is the only place that reads the identity.
 - A rejected seeker cannot request the same group again. One request per seeker per group is stored, and a second request returns `409`.
-- Frontend: in progress. It is not in this repository yet.
+- Frontend is maintained separately in `hydro-7/2FA-MATCHER-FE`, including the creator/seeker flow, shortlist/comparison, booking confirmation and group-chat popup.
 - S1 (chat): polling only (`GET /groups/:id/messages?after=`), no WebSocket push. Messages cannot be edited or deleted.
 - The API tests run on PGlite, which has one connection, so parallel approvals and bookings are checked for correct results but not for real lock contention. In Postgres that is handled by `SELECT ... FOR UPDATE` on the group row.
+
